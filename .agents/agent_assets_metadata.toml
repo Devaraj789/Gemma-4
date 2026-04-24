@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "Pyr4eF86SU1uRifNp7xB9"
 uri = "file://artifacts/gemma-chat/assets/images/icon.png"
 type = "image"
 title = "gemma chat app icon"
+
+[[outputs]]
+id = "vaur_iKVo1nUeUMiWEk5T"
+uri = "file://artifacts/gemma-chat/SETUP.md"
+type = "text"
+title = "Real Inference Setup Guide"
