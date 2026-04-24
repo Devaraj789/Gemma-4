@@ -1,0 +1,32 @@
+[expo-cli] ../..                                    | Progress: resolved 1033, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 1048, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 1059, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 1069, reused 0, downloaded 0, added 0
+[expo-cli] WARN  4 deprecated subdependencies found: glob@7.2.3, inflight@1.0.6, rimraf@3.0.2, uuid@3.4.0
+[expo-cli] ../..                                    | Progress: resolved 1069, reused 0, downloaded 0, added 0, done
+[expo-cli] dependencies:
+[expo-cli] + expo-dev-client ~6.0.20
+[expo-cli] ../..                                    |   +7   -1 +-
+[expo-cli] ../.. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+[expo-cli] ../.. preinstall: 'sh' is not recognized as an internal or external command,
+[expo-cli] ../.. preinstall: operable program or batch file.
+[expo-cli] ../.. preinstall: Failed
+[expo-cli] ELIFECYCLE  Command failed with exit code 1.
+[expo-cli] Error: pnpm add expo-dev-client@~6.0.20 exited with non-zero code: 1
+[expo-cli] Error: pnpm add expo-dev-client@~6.0.20 exited with non-zero code: 1
+[expo-cli]     at ChildProcess.completionListener (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\@expo+spawn-async@1.7.2\node_modules\@expo\spawn-async\build\spawnAsync.js:42:23)
+[expo-cli]     at Object.onceWrapper (node:events:631:26)
+[expo-cli]     at ChildProcess.emit (node:events:509:28)
+[expo-cli]     at cp.emit (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\cross-spawn@7.0.6\node_modules\cross-spawn\lib\enoent.js:34:29)
+[expo-cli]     at maybeClose (node:internal/child_process:1124:16)
+[expo-cli]     at ChildProcess._handle.onexit (node:internal/child_process:306:5)
+[expo-cli]     ...
+[expo-cli]     at spawnAsync (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\@expo+spawn-async@1.7.2\node_modules\@expo\spawn-async\build\spawnAsync.js:7:23)
+[expo-cli]     at PnpmPackageManager.runAsync (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\@expo+package-manager@1.10.4\node_modules\@expo\package-manager\build\node\BasePackageManager.js:41:42)
+[expo-cli]     at PnpmPackageManager.addAsync (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\@expo+package-manager@1.10.4\node_modules\@expo\package-manager\build\node\PnpmPackageManager.js:36:21)
+[expo-cli]     at installPackagesAsync (C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\@expo+cli@54.0.23_expo-rout_7770b6ba7a2f06d8dd14188a0fbb731c\node_modules\@expo\cli\build\src\install\installAsync.js:189:30)
+[expo-cli]     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+C:\Users\PONRAJ\gemma-4\node_modules\.pnpm\expo@54.0.33_@babel+core@7._ef39a591965173e95efc8473d20daf54\node_modules\expo\bin\cli install expo-dev-client exited with non-zero code: 1
+    Error: build command failed.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>notepad eas.json
