@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Gemma Offline Chat"
+version = "1.0.0"
+id = "artifacts/gemma-chat"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 22586
+
+[services.development]
+run = "pnpm --filter @workspace/gemma-chat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gemma-chat", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/gemma-chat", "run", "serve" ]
+
+[services.env]
+PORT = "22586"
+BASE_PATH = "/"
