@@ -1,0 +1,37 @@
+Fix the build failure for @devarajrdx9/gemma-chat:
+
+<build id="5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97" platform="ANDROID">
+<project fullName="@devarajrdx9/gemma-chat"/>
+<profile>development</profile>
+<buildMode>BUILD</buildMode>
+<distribution>INTERNAL</distribution>
+<environment>development</environment>
+<appVersion>1.0.0</appVersion>
+<appBuildVersion>1</appBuildVersion>
+<sdkVersion>54.0.0</sdkVersion>
+<fingerprint>2d943839bd41ac5a6a6ca4554d6182adf03228de</fingerprint>
+<git commit="934e9c4699114d1a54e052528d9eaa3e907710cd" message="Add an image asset to the project
+
+Add `image_1777053684035.png` to the `attached_assets` directory.
+
+Replit-Commit-Author: Agent
+Replit-Commit-Session-Id: 903cc0be-5a35-4771-8100-d58e945ced0f
+Replit-Commit-Checkpoint-Type: full_checkpoint
+Replit-Commit-Event-Id: 82b662d4-afd2-42c2-ac2e-8f3e28165662
+Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/1a9f9152-e636-4edb-b129-f2e89bc876bb/903cc0be-5a35-4771-8100-d58e945ced0f/6XObflD
+Replit-Helium-Checkpoint-Created: true"/>
+<cliVersion>18.8.1</cliVersion>
+<logFiles>
+<logFile>https://job-logs.eascdn.net/production/5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97/1777083806670-e48bc73c-7869-41d6-a2ec-6ae43a8acd54.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260425%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260425T022938Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=1eca4fac0f2df1fc3750132f2d9454f68d075aab1a552c333243574868b2afe581b95a51cc4cb978d96239bd5524f45e9c6fbc81fa3097d79be90a52fccb1f096d79bee16007f2d965a10cb75e3a1914dc69514d0537f35981de4cd0db552ae7ffa9e06896260b72e9adec65d147cb207f15c6fed2ca20cb315e67d3ff520fea9f0ffc32b8a5c9b44b027dcfbfb8d57e7522e4773346860087d1fca21ec67add7e3e8dd5136c6362dd6fdb8d78f6651de62e0c4481eaa45e420d1e8e6d7c7bb6bc02bb325f210c79019a338703a32bf07f11b038add2f18e7fc9a33bcbf719fe3ed20c331dd2e7941769a28c908c1bbdcc0ae2adce6e40d88f646d56a72b4d79</logFile>
+<logFile>https://job-logs.eascdn.net/production/5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97/1777083812281-4efe19b5-b4b4-4d89-a11b-cf56cb26baff.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260425%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260425T022938Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=7e441195371c9ad70c274c60c29d183c6ec49ae57b2f587cafa7c78d97c2aef2c76247019d911cd12d15767470b7c736f0c5ba5201fc547a84aecc377374f9e5d069e4f7e6551506207f02f265df132b3028b7ed7bde05143e3fe54400d655b006cfe344ed5522a72accd901a0d950077ea8d285c180d360c809a3bf8f764d96dc43e709d447c92fde67d051c94ee9acb4c29e121a600fc57009898c8e919e57e0fe3053c9df867d24d486d6b5a864a4a524721ad6c5311de59571c3e615ccad32c49a6ed267720bca5b7d9187c4c6da93b9000a0f98b5971eede550020ba84754ae4693f6a6d7f69c7389df84641e39aaeaa1e26b3d9ab5a8c196b1e8ed80c9</logFile>
+<logFile>https://job-logs.eascdn.net/production/5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97/1777083812612-6bb7e3ff-2c14-40ac-bee6-abe7a5478500.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260425%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260425T022938Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=308b2497852fbfdd6e620e7bf895a5ad978093f191399ef60ba01b792a9e510c7b6591f1e51cc34c83dc2a2e4cfb47b0a495b41cbae3eae30f2ed44526aee43773eac1cb5cfa6be3b4c6b7dc09910e0dadf7ce9442d67e26f1353880a90bb85a6c48a0d7d32fbe6630caf7c1250c011d14ba8b46dcdd087cb3b2f45744b52b24ef45df2ac59d57f4b199aff431fc850b9b5b027703889d6df99e874f66aca7e877ddb384a616da7b9c1643685b6d995660c11540fc19606de6dcb280ad1700159993e4abfb9c86f624c0499d91a5bb8b626a24870c3721569f320bc5643eeb55c778a8625582d7aed399295062adc0a2896db9b87e36a8f4702817f5b4e8869f</logFile>
+<logFile>https://job-logs.eascdn.net/production/5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97/1777083812992-cabf65af-27ec-4a06-8d85-f4de7f716c89.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260425%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260425T022938Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=0e1bcf9a623034851f54c1dc814d12b55a46acbaaa467d7117bfa21721f48bf5af29c5c9d1b58fa8b7f4cfbff2d1d3b9eca1780191c9778373bcfd5917f57eb6ded2675988be661692033639600002daf4c5a6cd12ab7ef07ae47a59ec00c6e0b5a54499262e698b8403e966548dc6507ff29512da05baf84baa2d010857948bba46d0739b02ff9e197ac1ec95847db93a98166cda70141c0556ff068733cfe14b595f6450efd45d57f46717a65060aba187f9ea961a317e7196b0077ebd6bd4cf46aa72ca6e65cda0cf9834d3ec0b9a6cbacec5278db942bbc7f1b4f17cdbf975b1c9029b91384929d2a350367d452d05ecea33be9b60e81314eb563c319a56</logFile>
+</logFiles>
+</build>
+
+<instructions>
+Investigate the build failure and propose a fix.
+You can use `eas build:view 5a8ec5c0-0d50-46a0-8c88-0aa5943e9d97 --json` for build metadata.
+
+If you have the Expo MCP server connected, you can also use the `build_info` and `build_logs` tools: https://docs.expo.dev/eas/ai/mcp/
+</instructions>
