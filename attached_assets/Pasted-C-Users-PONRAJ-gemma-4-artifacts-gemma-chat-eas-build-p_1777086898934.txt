@@ -1,0 +1,147 @@
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>eas build --profile development --platform android
+The field "cli.appVersionSource" is not set, but it will be required in the future. Learn more: https://docs.expo.dev/build-reference/app-versions/
+Resolved "development" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "development" environment on EAS.
+
+
+
+The field "cli.appVersionSource" is not set, but it will be required in the future. Learn more: https://docs.expo.dev/build-reference/app-versions/
+√ Using remote Android credentials (Expo server)
+√ Using Keystore from configuration: Build Credentials 4OGFo1cjC3 (default)
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+√ Compressed project files 10s (2.2 MB)
+√ Uploaded to EAS 3s
+⌛️ Computing the project fingerprint is taking longer than expected...
+⏩ To skip this step, set the environment variable: EAS_SKIP_AUTO_FINGERPRINT=1
+√ Computed project fingerprint
+
+See logs: https://expo.dev/accounts/devarajrdx9/projects/gemma-chat/builds/5d62b82d-51f0-4a64-9690-89b95baa934c
+
+Waiting for build to complete. You can press Ctrl+C to exit.
+√ Build finished
+
+  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  █ ▄▄▄▄▄ █▄▄███▄ ████▄▀█▀ ▀ ▀█ █ ▄▄▄▄▄ █
+  █ █   █ █ ▀█ ▄ ▄ ▀▀██ █▀▀  ▀▀▄█ █   █ █
+  █ █▄▄▄█ █▄ ▄▄▀▀█▄█ █ ▄█▀█ ██▄ █ █▄▄▄█ █
+  █▄▄▄▄▄▄▄█▄▀▄▀▄█ █▄▀▄█▄█ ▀ █ ▀▄█▄▄▄▄▄▄▄█
+  █▄▄▄ █▀▄▀ ████▀█▄█ █ ▀▄▄▀██▄█▀▄█▀▄  ▀▄█
+  █▀ ▀ █▀▄▀  ▀▀▀▀▀█▄▄█▀▀█▄  ▀██  ▀ ▄█  ▀█
+  █ █▀██ ▄█▀█  ▄ █▀█  ▀ █▄█  ▄ ▀  ▀   █ █
+  ██▄█▄█▄▄ ▀▀▄▀ ▄█▀ ▄▀    ▀▄▄██ ▀█▀  █▄▀█
+  █▀▄▀   ▄     ▀▄ ▀ █▄▄▄  ▀█▄ ▀▄█▀▀█▀▄ ▀█
+  █ █  ██▄▀▄▄ ▀ ██ ▀▀█▀ ▄█████▄ ▄▀▀ ▀▄ ▄█
+  ██▀▀█ █▄█ ▄▄▀ █▄██ ▀   █▀▄▀██  █▀▄██ ██
+  █▄ ▄███▄▀▀   ▄ ▄█ ▄ ▀ ██▄▀ ▀██▀█▄▄ ▀███
+  █▄▀█   ▄▄▄▀▄██ █ ▀  ▀██ █▀▄▄ ▀  ▀ █ ▄ █
+  █▀▄▄▀▄█▄█▄ ▀█ ▄▀▀ █▄▄▀▀█▀ ▄██▀▄▄ ██▄▄▀█
+  █████▄█▄▄ ▄▀▀▄  ▀ █▀▄  ▀ ▀ ▀▄ ▄▄▄ ▄ ▄ █
+  █ ▄▄▄▄▄ ██▀▄▀██▄▄ ▀ █ █ ▀▀▄▀█ █▄█  █▄▄█
+  █ █   █ █▀ ▀▀██▄▄▄▄ ▀▀ █▀█▀▄█   ▄ █▀▄██
+  █ █▄▄▄█ █ ▀▄▄▄ ▄█▀█▄▀▀▄▀ █ ▀▀█▀▄  ▄ ███
+  █▄▄▄▄▄▄▄█▄█▄█▄▄▄▄▄▄▄█▄█▄▄▄▄▄███▄▄▄▄▄▄▄█
+
+
+🤖 Open this link on your Android devices (or scan the QR code) to install the app:
+https://expo.dev/accounts/devarajrdx9/projects/gemma-chat/builds/5d62b82d-51f0-4a64-9690-89b95baa934c
+
+√ Install and run the Android build on an emulator? ... yes
+
+√ Successfully downloaded app 1m 52s
+adb executable doesn't seem to work. Please make sure Android Studio is installed on your device and ANDROID_HOME or ANDROID_SDK_ROOT env variables are set.
+spawn adb ENOENT
+    Error: build command failed.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>Task :react-native-screens:mergeDebugNativeLibs
+'Task' is not recognized as an internal or external command,
+operable program or batch file.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-screens:copyDebugJniLibsProjectOnly
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:buildCMakeDebug[x86]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:configureCMakeDebug[x86_64]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:buildCMakeDebug[x86][worklets]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:buildCMakeDebug[x86_64]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:mergeDebugJniLibFolders
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:mergeDebugNativeLibs
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :expo-modules-core:copyDebugJniLibsProjectOnly
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:buildCMakeDebug[x86_64][worklets]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:externalNativeBuildDebug
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:prefabDebugPackage
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:mergeDebugJniLibFolders
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:mergeDebugNativeLibs
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-worklets:copyDebugJniLibsProjectOnly
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:buildCMakeDebug[arm64-v8a][reanimated]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:buildCMakeDebug[armeabi-v7a][reanimated]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:buildCMakeDebug[x86][reanimated]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:buildCMakeDebug[x86_64][reanimated]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:externalNativeBuildDebug
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:prefabDebugPackage
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:mergeDebugNativeLibs
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-reanimated:copyDebugJniLibsProjectOnly
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:buildCMakeDebug[arm64-v8a]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:buildCMakeDebug[armeabi-v7a]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:buildCMakeDebug[x86]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:buildCMakeDebug[x86_64]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:mergeDebugNativeLibs
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :react-native-gesture-handler:copyDebugJniLibsProjectOnly
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :app:buildCMakeDebug[arm64-v8a]
+The filename, directory name, or volume label syntax is incorrect.
+
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>> Task :app:buildCMakeDebug[armeabi-v7a]
