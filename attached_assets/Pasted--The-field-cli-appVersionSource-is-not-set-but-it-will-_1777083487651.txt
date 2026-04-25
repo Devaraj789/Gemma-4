@@ -1,0 +1,39 @@
+
+The field "cli.appVersionSource" is not set, but it will be required in the future. Learn more: https://docs.expo.dev/build-reference/app-versions/
+√ Using remote Android credentials (Expo server)
+√ Generate a new Android Keystore? ... yes
+Detected that you do not have keytool installed locally.
+√ Generating keystore in the cloud...
+Progress: resolved 726, reused 0, downloaded 0, added 0
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+√ Compressed project files 27s (2.2 MB)
+√ Uploaded to EAS 2s
+⌛️ Computing the project fingerprint is taking longer than expected...
+ WARN  4 deprecated subdependencies found: glob@7.2.3, inflight@1.0.6, rimraf@3.0.2, uuid@3.4.0
+Progress: resolved 1070, reused 0, downloaded 0, added 0, done
+.                                        |   +8   -7 +-
+. preinstall$ node -e "if (!(process.env.npm_config_user_agent || '').startsWith('pnpm')) { console.error('Use pnpm instead'); process.exit(1) }"
+└─ Done in 6.8s
+╭ Warning ───────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                            │
+│   Ignored build scripts: llama.rn@0.12.0-rc.9.                                             │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.   │
+│                                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+Done in 6m 38.6s using pnpm v10.33.2
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■|
+C:\Users\PONRAJ\gemma-4>pnpm add expo-dev-client --filter @workspace/gemma-chat
+ WARN  4 deprecated subdependencies found: glob@7.2.3, inflight@1.0.6, rimraf@3.0.2, uuid@3.4.0
+Progress: resolved 1070, reused 0, downloaded 0, added 0, done
+. preinstall$ node -e "if (!(process.env.npm_config_user_agent || '').startsWith('pnpm')) { console.error('Use pnpm instead'); process.exit(1) }"
+└─ Done in 1.2s
+╭ Warning ───────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                            │
+│   Ignored build scripts: llama.rn@0.12.0-rc.9.                                             │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.   │
+│                                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+Done in 2m 20.7s using pnpm v10.33.2
+
+C:\Users\PONRAJ\gemma-4>pnpm add expo-dev-client --filter @workspace/gemma-chat
