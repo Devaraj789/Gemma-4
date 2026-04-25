@@ -1,10 +1,3 @@
-/**
- * Inference engine wrapper.
- *
- * If a GGUF model is loaded into llama.rn, runs real on-device inference.
- * Otherwise falls back to a small placeholder so the UI remains functional.
- */
-
 import * as Llama from "@/lib/llama";
 import type { Message } from "@/context/ChatContext";
 import type { Settings } from "@/context/SettingsContext";
@@ -12,6 +5,8 @@ import type { Settings } from "@/context/SettingsContext";
 export type InferenceChunk = {
   token: string;
   done: boolean;
+  tokensPerSec?: number;
+  totalTokens?: number;
 };
 
 export type GenerateParams = {
@@ -22,7 +17,7 @@ export type GenerateParams = {
 };
 
 const FALLBACK_RESPONSES: string[] = [
-  "No model is loaded yet. Open the Models tab, download a Gemma model, then tap Use this model to load it into memory. After that I can answer offline.",
+  "No model is loaded yet. Open the Models tab, download a Gemma model, then tap Use this model to load it into memory.",
   "I am ready, but a model has not been activated. Tap the model name at the top of this screen, choose a downloaded model, and try again.",
 ];
 
@@ -47,28 +42,35 @@ export async function generate({
           assembled += token;
           onToken({ token, done: false });
         },
+        onStats: (stats) => {
+          onToken({
+            token: "",
+            done: false,
+            tokensPerSec: stats.tokensPerSec,
+            totalTokens: stats.totalTokens,
+          });
+        },
       });
       onToken({ token: "", done: true });
       return text || assembled;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Inference failed";
-      const errChunk = `\n\n⚠ ${msg}`;
+      const errChunk = "\n\n ERROR: " + msg;
       onToken({ token: errChunk, done: false });
       onToken({ token: "", done: true });
       return assembled + errChunk;
     }
   }
 
-  const fullText =
-    FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)] ??
-    FALLBACK_RESPONSES[0]!;
-  const tokens = fullText.split(/(\s+)/);
+  const fallbackIndex = Math.floor(Math.random() * FALLBACK_RESPONSES.length);
+  const fullText = FALLBACK_RESPONSES[fallbackIndex] ?? FALLBACK_RESPONSES[0]!;
+  const words = fullText.split(" ");
   let assembled = "";
   const baseDelay = Math.max(10, 80 - settings.temperature * 50);
-  for (const tk of tokens) {
+  for (const word of words) {
     if (signal?.aborted) break;
-    assembled += tk;
-    onToken({ token: tk, done: false });
+    assembled += (assembled ? " " : "") + word;
+    onToken({ token: (assembled ? " " : "") + word, done: false });
     await new Promise((res) => setTimeout(res, baseDelay + Math.random() * 30));
   }
   onToken({ token: "", done: true });
