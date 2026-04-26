@@ -56,8 +56,10 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo-av": "^16.0.8",
     "expo-dev-client": "~6.0.20",
     "expo-file-system": "19.0.21",
-    "llama.rn": "0.12.0-rc.9"
+    "llama.rn": "0.12.0-rc.9",
+    "whisper.rn": "^0.5.5"
   }
 }

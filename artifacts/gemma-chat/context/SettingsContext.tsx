@@ -43,7 +43,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     void (async () => {
-      const stored = await loadJSON<Settings>(StorageKeys.SETTINGS, DEFAULT_SETTINGS);
+      const stored = await loadJSON<Settings>(
+        StorageKeys.SETTINGS,
+        DEFAULT_SETTINGS,
+      );
       if (!mounted) return;
       setSettings({ ...DEFAULT_SETTINGS, ...stored });
       setReady(true);
@@ -67,7 +70,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings, ready }}>
+    <SettingsContext.Provider
+      value={{ settings, updateSettings, resetSettings, ready }}
+    >
       {children}
     </SettingsContext.Provider>
   );

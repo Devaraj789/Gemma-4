@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { useColors } from "@/hooks/useColors";
 
 type Props = {
@@ -11,6 +10,8 @@ type Props = {
   onOpenModels: () => void;
   onOpenSettings: () => void;
   onNewChat: () => void;
+  onToggleTheme?: () => void;
+  isDark?: boolean;
 };
 
 export function ChatHeader({
@@ -19,6 +20,8 @@ export function ChatHeader({
   onOpenModels,
   onOpenSettings,
   onNewChat,
+  onToggleTheme,
+  isDark,
 }: Props) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -59,7 +62,11 @@ export function ChatHeader({
         <View
           style={[
             styles.statusDot,
-            { backgroundColor: modelName ? colors.success : colors.mutedForeground },
+            {
+              backgroundColor: modelName
+                ? colors.success
+                : colors.mutedForeground,
+            },
           ]}
         />
         <Text
@@ -72,6 +79,22 @@ export function ChatHeader({
       </Pressable>
 
       <View style={styles.rightGroup}>
+        {onToggleTheme && (
+          <Pressable
+            onPress={onToggleTheme}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { backgroundColor: pressed ? colors.muted : "transparent" },
+            ]}
+          >
+            <Feather
+              name={isDark ? "sun" : "moon"}
+              size={20}
+              color={colors.foreground}
+            />
+          </Pressable>
+        )}
         <Pressable
           onPress={onNewChat}
           hitSlop={8}

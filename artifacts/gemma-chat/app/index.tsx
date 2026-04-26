@@ -1,211 +1,177 @@
-import React, { useCallback, useRef, useState } from "react";
+import { router } from "expo-router";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  KeyboardAvoidingView,
   Platform,
-  Pressable,
-  StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ChatHeader } from "@/components/ChatHeader";
+import { ChatInput } from "@/components/ChatInput";
+import { EmptyChat } from "@/components/EmptyChat";
+import { MessageBubble } from "@/components/MessageBubble";
 import { useChat } from "@/context/ChatContext";
 import { useModels } from "@/context/ModelContext";
+import { useSettings } from "@/context/SettingsContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useColors } from "@/hooks/useColors";
+import type { Message } from "@/context/ChatContext";
 
 export default function ChatScreen() {
+  const colors = useColors();
+  const { toggleTheme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const {
     active,
     sendMessage,
-    stopGeneration,
     isGenerating,
-    newConversation,
+    stopGeneration,
+    setActiveId,
   } = useChat();
   const { activeModel } = useModels();
-  const { colors, isDark, toggleTheme } = useTheme();
-  const [input, setInput] = useState("");
-  const flatListRef = useRef<FlatList>(null);
+  const { settings } = useSettings();
+  const listRef = useRef<FlatList>(null);
 
-  const messages = active?.messages ?? [];
+  const [editText, setEditText] = useState<string | null>(null);
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
-    if (!text || isGenerating) return;
-    setInput("");
-    await sendMessage(text, activeModel?.id ?? null);
-  }, [input, isGenerating, sendMessage, activeModel]);
+  const messages = useMemo(() => {
+    if (!active) return [];
+    return [...active.messages].reverse();
+  }, [active]);
 
-  const handleStop = useCallback(() => {
-    stopGeneration();
-  }, [stopGeneration]);
+  const handleSend = useCallback(
+    (text: string) => {
+      setEditText(null);
+      void sendMessage(text, activeModel?.id ?? null);
+    },
+    [sendMessage, activeModel],
+  );
 
-  const styles = makeStyles(colors);
+  const handleNewChat = useCallback(() => {
+    setActiveId(null);
+    setEditText(null);
+  }, [setActiveId]);
+
+  // ✏️ Edit — user message content input-ல வரும்
+  const handleEdit = useCallback((message: Message) => {
+    setEditText(message.content);
+  }, []);
+
+  // 🔄 Retry handler
+  // User message → அதே text resend
+  // AI message → அதுக்கு முன்னாடி user message resend
+  const handleRetry = useCallback((message: Message) => {
+    if (!active) return;
+
+    if (message.role === "user") {
+      // User message retry → same text resend
+      void sendMessage(message.content, activeModel?.id ?? null);
+    } else {
+      // AI message retry → find previous user message
+      const msgs = active.messages;
+      const idx = msgs.findIndex((m) => m.id === message.id);
+      if (idx > 0) {
+        // AI message-க்கு முன்னாடி user message தேடு
+        for (let i = idx - 1; i >= 0; i--) {
+          if (msgs[i].role === "user") {
+            void sendMessage(msgs[i].content, activeModel?.id ?? null);
+            break;
+          }
+        }
+      }
+    }
+  }, [active, sendMessage, activeModel]);
+
+  const lastMessageId = active?.messages[active.messages.length - 1]?.id;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.statusBar} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => newConversation()}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            {activeModel ? `● ${activeModel.name}` : "No Model"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={toggleTheme} style={styles.themeBtn}>
-          <Text style={styles.themeBtnText}>{isDark ? "☀️" : "🌙"}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubble,
-              item.role === "user"
-                ? styles.bubbleUser
-                : styles.bubbleAssistant,
-              {
-                backgroundColor:
-                  item.role === "user"
-                    ? colors.bubble.user
-                    : colors.bubble.assistant,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.bubbleText,
-                {
-                  color:
-                    item.role === "user"
-                      ? colors.bubble.userText
-                      : colors.bubble.assistantText,
-                },
-              ]}
-            >
-              {item.content}
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.messageList}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <ChatHeader
+        modelName={activeModel?.shortName ?? null}
+        onOpenHistory={() => router.push("/history")}
+        onOpenModels={() => router.push("/models")}
+        onOpenSettings={() => router.push("/settings")}
+        onNewChat={handleNewChat}
+        onToggleTheme={toggleTheme}
+        isDark={isDark}
       />
-
-      {/* Input */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.flex}
+        behavior="padding"
+        keyboardVerticalOffset={0}
       >
-        <View
-          style={[
-            styles.inputRow,
-            {
-              backgroundColor: colors.background,
-              borderTopColor: colors.border,
-            },
-          ]}
-        >
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.inputBackground,
-                color: colors.text,
-              },
-            ]}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Message Gemma..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            editable={!isGenerating}
+        {!active || active.messages.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyChat
+              hasModel={!!activeModel}
+              modelName={activeModel?.shortName ?? null}
+              onPickPrompt={(p) => handleSend(p)}
+            />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(m) => m.id}
+            inverted
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingTop: 12,
+              paddingBottom: 12,
+            }}
+            renderItem={({ item }) => (
+              <MessageBubble
+                message={item}
+                showCursor={
+                  isGenerating &&
+                  item.id === lastMessageId &&
+                  item.role === "assistant"
+                }
+                onEdit={handleEdit}
+                onRetry={handleRetry}
+              />
+            )}
+            scrollEnabled={messages.length > 0}
           />
-          {isGenerating ? (
-            <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
-              <Text style={styles.stopBtnText}>⏹</Text>
-            </TouchableOpacity>
-          ) : (
-            <Pressable
-              style={[
-                styles.sendBtn,
-                {
-                  backgroundColor: input.trim()
-                    ? colors.primary
-                    : colors.border,
-                },
-              ]}
-              onPress={handleSend}
-              disabled={!input.trim()}
-            >
-              <Text style={styles.sendBtnText}>↑</Text>
-            </Pressable>
-          )}
+        )}
+        <View
+          style={{
+            paddingBottom:
+              Platform.OS === "web"
+                ? Math.max(insets.bottom, 12)
+                : insets.bottom,
+          }}
+        >
+          <ChatInput
+            onSend={handleSend}
+            onStop={stopGeneration}
+            isGenerating={isGenerating}
+            disabled={!activeModel}
+            hapticsEnabled={settings.haptics}
+            prefillText={editText}
+            placeholder={
+              activeModel
+                ? "Message Gemma…"
+                : "Download a model first to start chatting"
+            }
+          />
         </View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-function makeStyles(colors: any) {
-  return StyleSheet.create({
-    container: { flex: 1 },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 16,
-      paddingTop: 48,
-      paddingBottom: 12,
-    },
-    headerTitle: { fontSize: 16, fontWeight: "600" },
-    themeBtn: { padding: 8 },
-    themeBtnText: { fontSize: 20 },
-    messageList: { padding: 16, gap: 12 },
-    bubble: {
-      maxWidth: "85%",
-      borderRadius: 16,
-      padding: 12,
-    },
-    bubbleUser: { alignSelf: "flex-end" },
-    bubbleAssistant: { alignSelf: "flex-start" },
-    bubbleText: { fontSize: 15, lineHeight: 22 },
-    inputRow: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      padding: 12,
-      borderTopWidth: 1,
-      gap: 8,
-    },
-    input: {
-      flex: 1,
-      borderRadius: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      fontSize: 15,
-      maxHeight: 120,
-    },
-    sendBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    sendBtnText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-    stopBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: "#FF4444",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    stopBtnText: { fontSize: 16 },
-  });
-}
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  emptyWrap: {
+    flex: 1,
+  },
+});
