@@ -11,6 +11,9 @@ export type ModelVariant = {
   downloadUrl: string;
   badges: string[];
   recommended?: boolean;
+  // ✅ NEW
+  ramWarning?: boolean;
+  capabilities?: ("chat" | "coding" | "vision" | "tamil" | "uncensored")[];
 };
 
 export const GEMMA_MODELS: ModelVariant[] = [
@@ -29,6 +32,7 @@ export const GEMMA_MODELS: ModelVariant[] = [
       "https://huggingface.co/unsloth/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-Q4_K_M.gguf",
     badges: ["GGUF", "Chat", "Q4_K_M"],
     recommended: true,
+    capabilities: ["chat"],
   },
   {
     id: "gemma-3n-e4b-it-q4",
@@ -44,6 +48,8 @@ export const GEMMA_MODELS: ModelVariant[] = [
     downloadUrl:
       "https://huggingface.co/unsloth/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-E4B-it-Q4_K_M.gguf",
     badges: ["GGUF", "Chat", "Q4_K_M"],
+    ramWarning: true,
+    capabilities: ["chat"],
   },
   {
     id: "gemma-3-1b-it-q4",
@@ -59,6 +65,7 @@ export const GEMMA_MODELS: ModelVariant[] = [
     downloadUrl:
       "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf",
     badges: ["GGUF", "Tiny"],
+    capabilities: ["chat"],
   },
   {
     id: "gemma-3-4b-it-q4",
@@ -74,6 +81,58 @@ export const GEMMA_MODELS: ModelVariant[] = [
     downloadUrl:
       "https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/main/gemma-3-4b-it-Q4_K_M.gguf",
     badges: ["GGUF", "Balanced"],
+    capabilities: ["chat"],
+  },
+  // ✅ NEW — Coding Models
+  {
+    id: "qwen2.5-coder-1.5b-q4",
+    name: "Qwen2.5 Coder 1.5B",
+    shortName: "Qwen Coder 1.5B",
+    description:
+      "Specialized coding model. Supports 92 languages. Fast on low-RAM phones. Great for code generation and debugging.",
+    sizeLabel: "~1 GB",
+    sizeBytes: 1_000_000_000,
+    ramRequiredGb: 2,
+    quantization: "Q4_K_M",
+    format: "gguf",
+    downloadUrl:
+      "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    badges: ["GGUF", "Coding", "Q4_K_M"],
+    recommended: false,
+    capabilities: ["coding"],
+  },
+  {
+    id: "deepseek-coder-1.3b-q4",
+    name: "DeepSeek Coder 1.3B",
+    shortName: "DeepSeek Coder",
+    description:
+      "Lightweight coding model trained on 2T tokens of code. Excellent for code completion and generation.",
+    sizeLabel: "~800 MB",
+    sizeBytes: 800_000_000,
+    ramRequiredGb: 2,
+    quantization: "Q4_K_M",
+    format: "gguf",
+    downloadUrl:
+      "https://huggingface.co/TheBloke/deepseek-coder-1.3b-instruct-GGUF/resolve/main/deepseek-coder-1.3b-instruct.Q4_K_M.gguf",
+    badges: ["GGUF", "Coding", "Q4_K_M"],
+    capabilities: ["coding"],
+  },
+  // ✅ NEW — Uncensored Model
+  {
+    id: "llama-3.2-1b-uncensored-q4",
+    name: "Llama 3.2 1B Uncensored",
+    shortName: "Llama 3.2 Uncensored",
+    description:
+      "Uncensored variant of Llama 3.2 1B. No content filters. Use responsibly.",
+    sizeLabel: "~800 MB",
+    sizeBytes: 800_000_000,
+    ramRequiredGb: 2,
+    quantization: "Q4_K_M",
+    format: "gguf",
+    downloadUrl:
+      "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-uncensored-GGUF/resolve/main/Llama-3.2-1B-Instruct-uncensored-Q4_K_M.gguf",
+    badges: ["GGUF", "Uncensored", "Q4_K_M"],
+    capabilities: ["chat", "uncensored"],
   },
 ];
 
@@ -84,6 +143,14 @@ export function findModel(id: string): ModelVariant | undefined {
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+// ✅ RAM-based recommendation
+export function getRecommendedModel(ramGb: number): ModelVariant {
+  if (ramGb <= 2) return GEMMA_MODELS.find((m) => m.id === "gemma-3-1b-it-q4")!;
+  if (ramGb <= 3) return GEMMA_MODELS.find((m) => m.id === "gemma-3-4b-it-q4")!;
+  return GEMMA_MODELS.find((m) => m.id === "gemma-3n-e2b-it-q4")!;
 }

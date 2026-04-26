@@ -14,6 +14,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ModelCard } from "@/components/ModelCard";
 import { useModels } from "@/context/ModelContext";
 import { useColors } from "@/hooks/useColors";
+import { getRecommendedModel } from "@/lib/models";
+
+// Honor 9 Lite = 3GB RAM
+const DEVICE_RAM_GB = 3;
 
 export default function ModelsScreen() {
   const colors = useColors();
@@ -30,6 +34,7 @@ export default function ModelsScreen() {
   } = useModels();
 
   const downloadedCount = downloadedIds.length;
+  const recommendedModel = getRecommendedModel(DEVICE_RAM_GB);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -38,7 +43,9 @@ export default function ModelsScreen() {
           styles.header,
           {
             paddingTop:
-              Platform.OS === "web" ? Math.max(insets.top, 16) + 6 : insets.top + 6,
+              Platform.OS === "web"
+                ? Math.max(insets.top, 16) + 6
+                : insets.top + 6,
             borderBottomColor: colors.border,
           },
         ]}
@@ -61,17 +68,17 @@ export default function ModelsScreen() {
         contentContainerStyle={{
           padding: 16,
           paddingBottom:
-            Platform.OS === "web" ? Math.max(insets.bottom, 24) + 16 : insets.bottom + 24,
+            Platform.OS === "web"
+              ? Math.max(insets.bottom, 24) + 16
+              : insets.bottom + 24,
           gap: 12,
         }}
       >
+        {/* Downloaded summary */}
         <View
           style={[
             styles.summary,
-            {
-              backgroundColor: colors.accent,
-              borderColor: colors.primary,
-            },
+            { backgroundColor: colors.accent, borderColor: colors.primary },
           ]}
         >
           <Feather name="hard-drive" size={18} color={colors.primary} />
@@ -82,12 +89,27 @@ export default function ModelsScreen() {
                 : `${downloadedCount} model${downloadedCount === 1 ? "" : "s"} ready offline`}
             </Text>
             <Text
-              style={[
-                styles.summarySub,
-                { color: colors.accentForeground, opacity: 0.85 },
-              ]}
+              style={[styles.summarySub, { color: colors.accentForeground, opacity: 0.85 }]}
             >
               Once downloaded, models run on-device with no internet.
+            </Text>
+          </View>
+        </View>
+
+        {/* ✅ RAM-based recommendation banner */}
+        <View
+          style={[
+            styles.ramBanner,
+            { backgroundColor: colors.success + "18", borderColor: colors.success + "44" },
+          ]}
+        >
+          <Feather name="cpu" size={16} color={colors.success} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.ramBannerTitle, { color: colors.success }]}>
+              Best for your device ({DEVICE_RAM_GB}GB RAM)
+            </Text>
+            <Text style={[styles.ramBannerSub, { color: colors.mutedForeground }]}>
+              {recommendedModel.name} — {recommendedModel.sizeLabel}
             </Text>
           </View>
         </View>
@@ -133,50 +155,28 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: {
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-  },
+  title: { fontSize: 17, fontFamily: "Inter_700Bold" },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 38, height: 38, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
   },
   summary: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: "flex-start",
+    flexDirection: "row", gap: 12, padding: 14,
+    borderRadius: 14, borderWidth: 1, alignItems: "flex-start",
   },
-  summaryText: {
-    flex: 1,
-    gap: 2,
+  summaryText: { flex: 1, gap: 2 },
+  summaryTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  summarySub: { fontSize: 12.5, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  // ✅ RAM banner
+  ramBanner: {
+    flexDirection: "row", alignItems: "center",
+    gap: 10, padding: 12, borderRadius: 12, borderWidth: 1,
   },
-  summaryTitle: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-  },
-  summarySub: {
-    fontSize: 12.5,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 17,
-  },
+  ramBannerTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  ramBannerSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   infoCard: {
-    flexDirection: "row",
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: "flex-start",
+    flexDirection: "row", gap: 10, padding: 14,
+    borderRadius: 14, borderWidth: 1, alignItems: "flex-start",
   },
-  infoText: {
-    flex: 1,
-    fontSize: 12.5,
-    lineHeight: 17,
-    fontFamily: "Inter_400Regular",
-  },
+  infoText: { flex: 1, fontSize: 12.5, lineHeight: 17, fontFamily: "Inter_400Regular" },
 });
