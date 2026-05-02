@@ -20,6 +20,15 @@ type Props = {
   onRetry?: (message: Message) => void;
 };
 
+function formatLoadTime(ms: number): string {
+  if (ms < 1000) return `${ms}ms load`;
+  return `${(ms / 1000).toFixed(1)}s load`;
+}
+
+function formatTokPerSec(t: number): string {
+  return `${t.toFixed(1)} tok/s`;
+}
+
 export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
   const colors = useColors();
   const isUser = message.role === "user";
@@ -45,6 +54,14 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
     if (onRetry) onRetry(message);
   };
 
+  const stats = message.stats;
+  const showStats =
+    !isUser &&
+    !showCursor &&
+    message.content.length > 0 &&
+    stats &&
+    (stats.tokensPerSec > 0 || (stats.loadTimeMs ?? 0) > 0);
+
   return (
     <>
       {/* Long-press Modal — user message only */}
@@ -68,7 +85,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
                 },
               ]}
             >
-              {/* Copy */}
               <TouchableOpacity
                 style={[styles.menuItem, styles.menuItemBorder, { borderBottomColor: colors.border }]}
                 onPress={handleCopy}
@@ -82,7 +98,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
                 </Text>
               </TouchableOpacity>
 
-              {/* Edit & Resend */}
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={handleEdit}
@@ -129,10 +144,38 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
         </View>
       </Pressable>
 
-      {/* ── AI message action bar ── */}
+      {/* Stats row — load time + tok/s */}
+      {showStats ? (
+        <View style={[styles.statsRow]}>
+          {(stats.loadTimeMs ?? 0) > 0 ? (
+            <View style={[styles.statPill, { backgroundColor: colors.secondary }]}>
+              <Feather name="clock" size={10} color={colors.mutedForeground} />
+              <Text style={[styles.statText, { color: colors.mutedForeground }]}>
+                {formatLoadTime(stats.loadTimeMs!)}
+              </Text>
+            </View>
+          ) : null}
+          {stats.tokensPerSec > 0 ? (
+            <View style={[styles.statPill, { backgroundColor: colors.secondary }]}>
+              <Feather name="zap" size={10} color={colors.mutedForeground} />
+              <Text style={[styles.statText, { color: colors.mutedForeground }]}>
+                {formatTokPerSec(stats.tokensPerSec)}
+              </Text>
+            </View>
+          ) : null}
+          {stats.totalTokens > 0 ? (
+            <View style={[styles.statPill, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.statText, { color: colors.mutedForeground }]}>
+                {stats.totalTokens} tokens
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* AI message action bar */}
       {!isUser && !showCursor && message.content.length > 0 && (
         <View style={[styles.actionBar, { justifyContent: "flex-start" }]}>
-          {/* Copy */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={handleCopy}
@@ -141,7 +184,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
             <Feather name="copy" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
 
-          {/* Like */}
           <TouchableOpacity
             style={[
               styles.actionBtn,
@@ -160,7 +202,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
             />
           </TouchableOpacity>
 
-          {/* Dislike */}
           <TouchableOpacity
             style={[
               styles.actionBtn,
@@ -179,7 +220,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
             />
           </TouchableOpacity>
 
-          {/* Retry */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={handleRetry}
@@ -190,10 +230,9 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
         </View>
       )}
 
-      {/* ── User message action bar ── */}
+      {/* User message action bar */}
       {isUser && !showCursor && message.content.length > 0 && (
         <View style={[styles.actionBar, { justifyContent: "flex-end" }]}>
-          {/* Copy */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={handleCopy}
@@ -202,7 +241,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
             <Feather name="copy" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
 
-          {/* Edit */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={handleEdit}
@@ -211,7 +249,6 @@ export function MessageBubble({ message, showCursor, onEdit, onRetry }: Props) {
             <Feather name="edit-2" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
 
-          {/* Retry */}
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.secondary }]}
             onPress={handleRetry}
@@ -242,8 +279,25 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: "Inter_400Regular",
   },
-
-  // Action bar
+  statsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 6,
+  },
+  statPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statText: {
+    fontSize: 10.5,
+    fontFamily: "Inter_500Medium",
+  },
   actionBar: {
     flexDirection: "row",
     paddingHorizontal: 20,
@@ -257,8 +311,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  // Long-press modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",

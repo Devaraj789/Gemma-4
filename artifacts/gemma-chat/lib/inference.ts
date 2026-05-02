@@ -13,6 +13,7 @@ export type GenerateParams = {
   messages: Message[];
   settings: Settings;
   onToken: (chunk: InferenceChunk) => void;
+  onStats?: (stats: { tokensPerSec: number; totalTokens: number }) => void;
   signal?: AbortSignal;
 };
 

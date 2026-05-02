@@ -1,8 +1,7 @@
 import { Platform } from "react-native";
-import type { WhisperContext } from "whisper.rn";
 import * as FileSystem from "expo-file-system/legacy";
 
-let whisperCtx: WhisperContext | null = null;
+let whisperCtx: unknown = null;
 let isInitializing = false;
 
 const MODEL_URL =
@@ -17,7 +16,7 @@ export async function ensureWhisperModel(): Promise<void> {
   await FileSystem.downloadAsync(MODEL_URL, MODEL_PATH);
 }
 
-export async function loadWhisper(): Promise<WhisperContext> {
+export async function loadWhisper(): Promise<unknown> {
   if (Platform.OS === "web") throw new Error("Whisper not supported on web");
   if (whisperCtx) return whisperCtx;
   if (isInitializing) {
@@ -29,15 +28,19 @@ export async function loadWhisper(): Promise<WhisperContext> {
         }
       }, 100);
     });
-    return whisperCtx!;
+    return whisperCtx;
   }
 
   isInitializing = true;
   try {
     await ensureWhisperModel();
-    // Dynamic import — web-ல load ஆகாது
-    const { initWhisper } = await import("whisper.rn");
-    whisperCtx = await initWhisper({ filePath: MODEL_PATH });
+    const { initWhisper } = await import(
+      /* @ts-expect-error whisper.rn has no types */
+      "whisper.rn"
+    );
+    whisperCtx = await (initWhisper as (opts: { filePath: string }) => Promise<unknown>)({
+      filePath: MODEL_PATH,
+    });
     return whisperCtx;
   } finally {
     isInitializing = false;
@@ -47,7 +50,7 @@ export async function loadWhisper(): Promise<WhisperContext> {
 export async function unloadWhisper(): Promise<void> {
   if (Platform.OS === "web") return;
   if (whisperCtx) {
-    await whisperCtx.release();
+    await (whisperCtx as { release: () => Promise<void> }).release();
     whisperCtx = null;
   }
 }

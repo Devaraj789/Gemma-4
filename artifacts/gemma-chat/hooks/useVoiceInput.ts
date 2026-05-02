@@ -53,7 +53,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       if (!uri) throw new Error("No audio file");
 
       // Whisper transcribe
-      const ctx = await loadWhisper();
+      const ctx = await loadWhisper() as { transcribe: (uri: string, opts: unknown) => { promise: Promise<{ result?: string }> } };
       const { promise } = ctx.transcribe(uri, {
         language: "auto",
         maxLen: 1,
