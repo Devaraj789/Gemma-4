@@ -11,38 +11,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── 2. Java 17 ────────────────────────────────────────────────────────
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: temurin
 
-      # ── 3. Node.js 20 ─────────────────────────────────────────────────────
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # ── 4. pnpm (this is a pnpm monorepo) ─────────────────────────────────
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      # ── 5. Install all workspace dependencies ─────────────────────────────
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      # ── 6. Android SDK + NDK (llama.rn needs NDK to compile C++ engine) ───
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK 26
+      - name: Install Android NDK 26 + build tools
         run: |
           echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
             "ndk;26.3.11579264" \
@@ -52,7 +46,6 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
           echo "NDK installed ✅"
 
-      # ── 7. Expo Prebuild → generates android/ native folder ───────────────
       - name: Expo Prebuild
         working-directory: artifacts/gemma-chat
         run: npx expo prebuild --platform android --no-install --clean
@@ -60,15 +53,20 @@ jobs:
           EXPO_NO_TELEMETRY: "1"
           CI: "1"
 
-      # ── 8. Gradlew permission ─────────────────────────────────────────────
+      - name: Enable universal APK in build.gradle
+        working-directory: artifacts/gemma-chat/android/app
+        run: |
+          sed -i 's/enableSeparateBuildPerCPUArchitecture = true/enableSeparateBuildPerCPUArchitecture = false/' build.gradle || true
+          sed -i 's/universalApk false/universalApk true/' build.gradle || true
+          echo "build.gradle patched for universal APK ✅"
+
       - name: Make Gradlew executable
         working-directory: artifacts/gemma-chat/android
         run: chmod +x gradlew
 
-      # ── 9. Build Debug APK ────────────────────────────────────────────────
       - name: Build Debug APK
         working-directory: artifacts/gemma-chat/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
           GRADLE_OPTS: >-
@@ -76,11 +74,16 @@ jobs:
             -Dorg.gradle.jvmargs=-Xmx6g
             -XX:MaxMetaspaceSize=1g
 
-      # ── 10. Upload APK ────────────────────────────────────────────────────
+      - name: List generated APKs
+        run: |
+          echo "=== APKs generated ==="
+          find artifacts/gemma-chat/android/app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
+          echo "======================"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: gemma-offline-chat-debug
-          path: artifacts/gemma-chat/android/app/build/outputs/apk/debug/app-debug.apk
+          path: artifacts/gemma-chat/android/app/build/outputs/apk/debug/
           retention-days: 14
           if-no-files-found: error
