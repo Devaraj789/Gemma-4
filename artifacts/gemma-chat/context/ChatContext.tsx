@@ -50,6 +50,7 @@ type ChatContextValue = {
   isGenerating: boolean;
   generatingStats: MessageStats | null;
   ready: boolean;
+  exportConversations: () => Promise<string>;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -73,18 +74,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     void (async () => {
       const stored = await loadJSON<Conversation[]>(StorageKeys.CONVERSATIONS, []);
-      const storedActive = await loadJSON<string | null>(
-        StorageKeys.ACTIVE_CONVERSATION,
-        null,
-      );
+      const storedActive = await loadJSON<string | null>(StorageKeys.ACTIVE_CONVERSATION, null);
       if (!mounted) return;
-      setConversations(stored);
-      setActiveIdState(storedActive);
+
+      // Auto-delete old chats based on setting
+      const { autoDeleteDays } = settings;
+      let filtered = stored;
+      if (autoDeleteDays > 0) {
+        const cutoff = Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000;
+        filtered = stored.filter((c) => c.updatedAt >= cutoff);
+        if (filtered.length !== stored.length) {
+          void saveJSON(StorageKeys.CONVERSATIONS, filtered);
+        }
+      }
+
+      setConversations(filtered);
+      const validActive = filtered.find((c) => c.id === storedActive) ? storedActive : null;
+      setActiveIdState(validActive);
       setReady(true);
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persist = useCallback((next: Conversation[]) => {
@@ -120,9 +130,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setConversations((prev) => {
         const next = prev.filter((c) => c.id !== id);
         void saveJSON(StorageKeys.CONVERSATIONS, next);
-        if (activeId === id) {
-          setActiveId(next[0]?.id ?? null);
-        }
+        if (activeId === id) setActiveId(next[0]?.id ?? null);
         return next;
       });
     },
@@ -141,6 +149,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setGeneratingStats(null);
   }, []);
 
+  const exportConversations = useCallback(async (): Promise<string> => {
+    const lines: string[] = [];
+    lines.push("# Gemma Offline Chat — Exported Conversations");
+    lines.push(`Exported: ${new Date().toLocaleString()}`);
+    lines.push(`Total conversations: ${conversations.length}`);
+    lines.push("");
+    for (const conv of conversations) {
+      lines.push("---");
+      lines.push(`## ${conv.title}`);
+      lines.push(`Date: ${new Date(conv.createdAt).toLocaleString()}`);
+      lines.push(`Messages: ${conv.messages.length}`);
+      lines.push("");
+      for (const msg of conv.messages) {
+        const role = msg.role === "user" ? "You" : "Gemma";
+        lines.push(`[${role}]: ${msg.content}`);
+        lines.push("");
+      }
+    }
+    return lines.join("\n");
+  }, [conversations]);
+
   const sendMessage = useCallback(
     async (text: string, modelId: string | null) => {
       const trimmed = text.trim();
@@ -148,24 +177,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       let convId = activeId;
       let isNewConv = false;
-      if (!convId) {
-        convId = uuid();
-        isNewConv = true;
-      }
+      if (!convId) { convId = uuid(); isNewConv = true; }
 
-      const userMsg: Message = {
-        id: uuid(),
-        role: "user",
-        content: trimmed,
-        createdAt: Date.now(),
-      };
-
-      const placeholder: Message = {
-        id: uuid(),
-        role: "assistant",
-        content: "",
-        createdAt: Date.now(),
-      };
+      const userMsg: Message = { id: uuid(), role: "user", content: trimmed, createdAt: Date.now() };
+      const placeholder: Message = { id: uuid(), role: "assistant", content: "", createdAt: Date.now() };
 
       setConversations((prev) => {
         let next: Conversation[];
@@ -196,7 +211,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (isNewConv) setActiveId(convId);
-
       setIsGenerating(true);
       setGeneratingStats(null);
       const controller = new AbortController();
@@ -220,9 +234,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           ? { messages: [userMsg] as Message[] }
           : conversations.find((c) => c.id === convId);
         const history = baseConv?.messages ?? [userMsg];
-        const messagesForEngine: Message[] = isNewConv
-          ? [userMsg]
-          : [...history, userMsg];
+        const messagesForEngine: Message[] = isNewConv ? [userMsg] : [...history, userMsg];
 
         let assembled = "";
         let liveStats: MessageStats = { tokensPerSec: 0, totalTokens: 0 };
@@ -242,15 +254,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           },
         });
 
-        setConversations((prev) => {
-          void saveJSON(StorageKeys.CONVERSATIONS, prev);
-          return prev;
-        });
+        setConversations((prev) => { void saveJSON(StorageKeys.CONVERSATIONS, prev); return prev; });
       } catch (err) {
         const errorText =
-          err instanceof Error
-            ? `Generation failed: ${err.message}`
-            : "Generation failed.";
+          err instanceof Error ? `Generation failed: ${err.message}` : "Generation failed.";
         updateAssistant(errorText);
       } finally {
         abortRef.current = null;
@@ -281,6 +288,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         isGenerating,
         generatingStats,
         ready,
+        exportConversations,
       }}
     >
       {children}
@@ -290,8 +298,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
 export function useChat(): ChatContextValue {
   const ctx = useContext(ChatContext);
-  if (!ctx) {
-    throw new Error("useChat must be used inside ChatProvider");
-  }
+  if (!ctx) throw new Error("useChat must be used inside ChatProvider");
   return ctx;
 }

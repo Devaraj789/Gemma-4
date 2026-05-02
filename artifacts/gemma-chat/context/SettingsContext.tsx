@@ -13,8 +13,11 @@ export type Settings = {
   topK: number;
   topP: number;
   maxTokens: number;
+  contextLength: number;
   systemPrompt: string;
   haptics: boolean;
+  fontSize: "small" | "medium" | "large";
+  autoDeleteDays: number;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -22,9 +25,12 @@ const DEFAULT_SETTINGS: Settings = {
   topK: 40,
   topP: 0.95,
   maxTokens: 512,
+  contextLength: 2048,
   systemPrompt:
     "You are a helpful, concise on-device assistant running entirely offline. Be friendly and clear.",
   haptics: true,
+  fontSize: "medium",
+  autoDeleteDays: 0,
 };
 
 type SettingsContextValue = {
@@ -43,17 +49,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
     void (async () => {
-      const stored = await loadJSON<Settings>(
-        StorageKeys.SETTINGS,
-        DEFAULT_SETTINGS,
-      );
+      const stored = await loadJSON<Settings>(StorageKeys.SETTINGS, DEFAULT_SETTINGS);
       if (!mounted) return;
       setSettings({ ...DEFAULT_SETTINGS, ...stored });
       setReady(true);
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const updateSettings = useCallback((partial: Partial<Settings>) => {
@@ -70,9 +71,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider
-      value={{ settings, updateSettings, resetSettings, ready }}
-    >
+    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings, ready }}>
       {children}
     </SettingsContext.Provider>
   );
@@ -80,8 +79,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
 export function useSettings(): SettingsContextValue {
   const ctx = useContext(SettingsContext);
-  if (!ctx) {
-    throw new Error("useSettings must be used inside SettingsProvider");
-  }
+  if (!ctx) throw new Error("useSettings must be used inside SettingsProvider");
   return ctx;
 }

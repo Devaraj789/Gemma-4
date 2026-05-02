@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import {
   FlatList,
   Platform,
@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { EmptyChat } from "@/components/EmptyChat";
@@ -17,12 +18,11 @@ import { useModels } from "@/context/ModelContext";
 import { useSettings } from "@/context/SettingsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
-import type { Message } from "@/context/ChatContext";
 
 export default function ChatScreen() {
   const colors = useColors();
-  const { toggleTheme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { toggleTheme, isDark } = useTheme();
   const {
     active,
     sendMessage,
@@ -34,55 +34,17 @@ export default function ChatScreen() {
   const { settings } = useSettings();
   const listRef = useRef<FlatList>(null);
 
-  const [editText, setEditText] = useState<string | null>(null);
-
   const messages = useMemo(() => {
     if (!active) return [];
     return [...active.messages].reverse();
   }, [active]);
 
   const handleSend = useCallback(
-    (text: string) => {
-      setEditText(null);
-      void sendMessage(text, activeModel?.id ?? null);
-    },
+    (text: string) => { void sendMessage(text, activeModel?.id ?? null); },
     [sendMessage, activeModel],
   );
 
-  const handleNewChat = useCallback(() => {
-    setActiveId(null);
-    setEditText(null);
-  }, [setActiveId]);
-
-  // ✏️ Edit — user message content input-ல வரும்
-  const handleEdit = useCallback((message: Message) => {
-    setEditText(message.content);
-  }, []);
-
-  // 🔄 Retry handler
-  // User message → அதே text resend
-  // AI message → அதுக்கு முன்னாடி user message resend
-  const handleRetry = useCallback((message: Message) => {
-    if (!active) return;
-
-    if (message.role === "user") {
-      // User message retry → same text resend
-      void sendMessage(message.content, activeModel?.id ?? null);
-    } else {
-      // AI message retry → find previous user message
-      const msgs = active.messages;
-      const idx = msgs.findIndex((m) => m.id === message.id);
-      if (idx > 0) {
-        // AI message-க்கு முன்னாடி user message தேடு
-        for (let i = idx - 1; i >= 0; i--) {
-          if (msgs[i].role === "user") {
-            void sendMessage(msgs[i].content, activeModel?.id ?? null);
-            break;
-          }
-        }
-      }
-    }
-  }, [active, sendMessage, activeModel]);
+  const handleNewChat = useCallback(() => { setActiveId(null); }, [setActiveId]);
 
   const lastMessageId = active?.messages[active.messages.length - 1]?.id;
 
@@ -97,11 +59,8 @@ export default function ChatScreen() {
         onToggleTheme={toggleTheme}
         isDark={isDark}
       />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior="padding"
-        keyboardVerticalOffset={0}
-      >
+
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
         {!active || active.messages.length === 0 ? (
           <View style={styles.emptyWrap}>
             <EmptyChat
@@ -118,45 +77,26 @@ export default function ChatScreen() {
             inverted
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              paddingTop: 12,
-              paddingBottom: 12,
-            }}
+            contentContainerStyle={{ paddingTop: 12, paddingBottom: 12 }}
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
-                showCursor={
-                  isGenerating &&
-                  item.id === lastMessageId &&
-                  item.role === "assistant"
-                }
-                onEdit={handleEdit}
-                onRetry={handleRetry}
+                showCursor={isGenerating && item.id === lastMessageId && item.role === "assistant"}
+                fontSize={settings.fontSize}
               />
             )}
             scrollEnabled={messages.length > 0}
           />
         )}
-        <View
-          style={{
-            paddingBottom:
-              Platform.OS === "web"
-                ? Math.max(insets.bottom, 12)
-                : insets.bottom,
-          }}
-        >
+
+        <View style={{ paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 12) : insets.bottom }}>
           <ChatInput
             onSend={handleSend}
             onStop={stopGeneration}
             isGenerating={isGenerating}
             disabled={!activeModel}
             hapticsEnabled={settings.haptics}
-            prefillText={editText}
-            placeholder={
-              activeModel
-                ? "Message Gemma…"
-                : "Download a model first to start chatting"
-            }
+            placeholder={activeModel ? "Message Gemma…" : "Download a model first to start chatting"}
           />
         </View>
       </KeyboardAvoidingView>
@@ -165,13 +105,7 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  flex: {
-    flex: 1,
-  },
-  emptyWrap: {
-    flex: 1,
-  },
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  emptyWrap: { flex: 1 },
 });
