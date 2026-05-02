@@ -1,5 +1,9 @@
 import type { Message } from "@/context/ChatContext";
 
+export function getLastLoadTimeMs(): number {
+  return 0;
+}
+
 export async function loadModel(_modelPath: string): Promise<void> {
   throw new Error("llama.rn is not available on web");
 }
@@ -31,6 +35,7 @@ export type CompletionParams = {
   topP: number;
   maxTokens: number;
   onToken: (token: string) => void;
+  onStats?: (stats: { tokensPerSec: number; totalTokens: number }) => void;
   signal?: AbortSignal;
 };
 

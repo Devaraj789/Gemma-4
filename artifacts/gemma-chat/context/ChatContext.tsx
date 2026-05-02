@@ -14,11 +14,18 @@ import { uuid } from "@/lib/uuid";
 
 import { useSettings } from "./SettingsContext";
 
+export type MessageStats = {
+  tokensPerSec: number;
+  totalTokens: number;
+  loadTimeMs?: number;
+};
+
 export type Message = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: number;
+  stats?: MessageStats;
 };
 
 export type Conversation = {
@@ -41,6 +48,7 @@ type ChatContextValue = {
   sendMessage: (text: string, modelId: string | null) => Promise<void>;
   stopGeneration: () => void;
   isGenerating: boolean;
+  generatingStats: MessageStats | null;
   ready: boolean;
 };
 
@@ -57,6 +65,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveIdState] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generatingStats, setGeneratingStats] = useState<MessageStats | null>(null);
   const [ready, setReady] = useState<boolean>(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -129,6 +138,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortRef.current?.abort();
     abortRef.current = null;
     setIsGenerating(false);
+    setGeneratingStats(null);
   }, []);
 
   const sendMessage = useCallback(
@@ -136,7 +146,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const trimmed = text.trim();
       if (!trimmed) return;
 
-      // Resolve or create active conversation
       let convId = activeId;
       let isNewConv = false;
       if (!convId) {
@@ -173,44 +182,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         } else {
           next = prev.map((c) => {
             if (c.id !== convId) return c;
-            const updated: Conversation = {
+            return {
               ...c,
               messages: [...c.messages, userMsg, placeholder],
               updatedAt: Date.now(),
               title: c.messages.length === 0 ? inferTitle(trimmed) : c.title,
               modelId: c.modelId ?? modelId ?? undefined,
             };
-            return updated;
           });
         }
         void saveJSON(StorageKeys.CONVERSATIONS, next);
         return next;
       });
 
-      if (isNewConv) {
-        setActiveId(convId);
-      }
+      if (isNewConv) setActiveId(convId);
 
       setIsGenerating(true);
+      setGeneratingStats(null);
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const updateAssistant = (content: string) => {
+      const updateAssistant = (content: string, stats?: MessageStats) => {
         setConversations((prev) => {
           const next = prev.map((c) => {
             if (c.id !== convId) return c;
             const msgs = c.messages.map((m) =>
-              m.id === placeholder.id ? { ...m, content } : m,
+              m.id === placeholder.id ? { ...m, content, stats } : m,
             );
             return { ...c, messages: msgs, updatedAt: Date.now() };
           });
-          // do not persist on every token to reduce IO; persist when done
           return next;
         });
       };
 
       try {
-        // Build the message list for the engine (exclude empty placeholder)
         const baseConv = isNewConv
           ? { messages: [userMsg] as Message[] }
           : conversations.find((c) => c.id === convId);
@@ -220,6 +225,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           : [...history, userMsg];
 
         let assembled = "";
+        let liveStats: MessageStats = { tokensPerSec: 0, totalTokens: 0 };
+
         await generate({
           messages: messagesForEngine,
           settings,
@@ -227,11 +234,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           onToken: (chunk) => {
             if (chunk.done) return;
             assembled += chunk.token;
-            updateAssistant(assembled);
+            updateAssistant(assembled, liveStats);
+          },
+          onStats: (s) => {
+            liveStats = { tokensPerSec: s.tokensPerSec, totalTokens: s.totalTokens };
+            setGeneratingStats(liveStats);
           },
         });
 
-        // final persist
         setConversations((prev) => {
           void saveJSON(StorageKeys.CONVERSATIONS, prev);
           return prev;
@@ -245,6 +255,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       } finally {
         abortRef.current = null;
         setIsGenerating(false);
+        setGeneratingStats(null);
       }
     },
     [activeId, conversations, settings, setActiveId],
@@ -268,6 +279,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sendMessage,
         stopGeneration,
         isGenerating,
+        generatingStats,
         ready,
       }}
     >
