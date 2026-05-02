@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ProgressBar } from "@/components/ProgressBar";
 import type { DownloadState } from "@/context/ModelContext";
 import { useColors } from "@/hooks/useColors";
-import type { ModelVariant } from "@/lib/models";
+import type { Capability, ModelVariant } from "@/lib/models";
 
 type Props = {
   model: ModelVariant;
@@ -18,13 +18,20 @@ type Props = {
   onActivate: () => void;
 };
 
-// ✅ Capability badge config
-const CAPABILITY_CONFIG = {
-  chat:       { label: "Chat ✅",       color: "#22c55e" },
-  coding:     { label: "Coding 💻",     color: "#3b82f6" },
-  vision:     { label: "Vision 👁️",     color: "#a855f7" },
-  tamil:      { label: "Tamil ✅",       color: "#f59e0b" },
-  uncensored: { label: "Uncensored 🔓", color: "#ef4444" },
+type CapabilityConfig = {
+  label: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  color: string;
+};
+
+const CAPABILITY_CONFIG: Record<Capability, CapabilityConfig> = {
+  chat:       { label: "Chat",       icon: "message-circle", color: "#22c55e" },
+  coding:     { label: "Coding",     icon: "code",           color: "#3b82f6" },
+  vision:     { label: "Vision",     icon: "eye",            color: "#f59e0b" },
+  reasoning:  { label: "Reasoning",  icon: "cpu",            color: "#a855f7" },
+  tool_use:   { label: "Tool Use",   icon: "tool",           color: "#06b6d4" },
+  tamil:      { label: "Tamil",      icon: "globe",          color: "#f97316" },
+  uncensored: { label: "Uncensored", icon: "unlock",         color: "#ef4444" },
 };
 
 export function ModelCard({
@@ -41,6 +48,8 @@ export function ModelCard({
   const status = downloadState?.status ?? "idle";
   const progress = downloadState?.progress ?? 0;
 
+  const isLoading = status === "loading";
+
   return (
     <View
       style={[
@@ -52,74 +61,76 @@ export function ModelCard({
         },
       ]}
     >
+      {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           {model.recommended && (
             <View style={[styles.pillRecommended, { backgroundColor: colors.accent }]}>
               <Text style={[styles.pillText, { color: colors.accentForeground }]}>
-                Recommended
+                ⭐ Recommended
               </Text>
             </View>
           )}
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            {model.name}
-          </Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{model.name}</Text>
           <Text style={[styles.description, { color: colors.mutedForeground }]}>
             {model.description}
           </Text>
         </View>
       </View>
 
-      {/* ✅ Capability Badges */}
+      {/* Capability Icons Row (like the screenshot) */}
       {model.capabilities && model.capabilities.length > 0 && (
-        <View style={styles.badgeRow}>
+        <View style={styles.capRow}>
           {model.capabilities.map((cap) => {
             const cfg = CAPABILITY_CONFIG[cap];
-            if (!cfg) return null; // ✅ safe check add
+            if (!cfg) return null;
             return (
               <View
                 key={cap}
-                style={[styles.capBadge, { backgroundColor: cfg.color + "22", borderColor: cfg.color + "55" }]}
+                style={[
+                  styles.capIcon,
+                  { backgroundColor: cfg.color + "20", borderColor: cfg.color + "50" },
+                ]}
               >
-                <Text style={[styles.capBadgeText, { color: cfg.color }]}>
-                  {cfg.label}
-                </Text>
+                <Feather name={cfg.icon} size={13} color={cfg.color} />
+                <Text style={[styles.capLabel, { color: cfg.color }]}>{cfg.label}</Text>
               </View>
             );
           })}
         </View>
       )}
 
-      {/* ✅ RAM Warning */}
+      {/* RAM Warning */}
       {model.ramWarning && (
-        <View style={[styles.ramWarn, { backgroundColor: colors.warning + "22", borderColor: colors.warning + "55" }]}>
+        <View
+          style={[
+            styles.ramWarn,
+            { backgroundColor: colors.warning + "22", borderColor: colors.warning + "55" },
+          ]}
+        >
           <Feather name="alert-triangle" size={13} color={colors.warning} />
           <Text style={[styles.ramWarnText, { color: colors.warning }]}>
-            Requires {model.ramRequiredGb}GB+ RAM — may be slow on this device
+            Requires {model.ramRequiredGb}GB+ RAM — may be slow on low-end devices
           </Text>
         </View>
       )}
 
+      {/* Regular badges (GGUF, size, RAM) */}
       <View style={styles.badgeRow}>
         {model.badges.map((b) => (
           <View key={b} style={[styles.badge, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
-              {b}
-            </Text>
+            <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>{b}</Text>
           </View>
         ))}
         <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
-          <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
-            {model.sizeLabel}
-          </Text>
+          <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>{model.sizeLabel}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
-          <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>
-            {model.ramRequiredGb}+ GB RAM
-          </Text>
+          <Text style={[styles.badgeText, { color: colors.secondaryForeground }]}>{model.ramRequiredGb}+ GB RAM</Text>
         </View>
       </View>
 
+      {/* Download progress */}
       {status === "downloading" && (
         <View style={styles.downloadProgress}>
           <View style={styles.progressLabelRow}>
@@ -127,21 +138,20 @@ export function ModelCard({
               Downloading {Math.round(progress * 100)}%
             </Text>
             <Pressable onPress={onCancel} hitSlop={8}>
-              <Text style={[styles.cancelText, { color: colors.destructive }]}>
-                Cancel
-              </Text>
+              <Text style={[styles.cancelText, { color: colors.destructive }]}>Cancel</Text>
             </Pressable>
           </View>
           <ProgressBar progress={progress} />
         </View>
       )}
 
+      {/* Actions */}
       <View style={styles.actionsRow}>
         {isDownloaded ? (
           <>
             <Pressable
               onPress={onActivate}
-              disabled={isActive}
+              disabled={isActive || isLoading}
               style={({ pressed }) => [
                 styles.primaryBtn,
                 {
@@ -151,7 +161,7 @@ export function ModelCard({
               ]}
             >
               <Feather
-                name={isActive ? "check" : "zap"}
+                name={isLoading ? "loader" : isActive ? "check" : "zap"}
                 size={16}
                 color={isActive ? colors.mutedForeground : colors.primaryForeground}
               />
@@ -161,7 +171,7 @@ export function ModelCard({
                   { color: isActive ? colors.mutedForeground : colors.primaryForeground },
                 ]}
               >
-                {isActive ? "Active" : "Use this model"}
+                {isLoading ? "Loading…" : isActive ? "Active" : "Use this model"}
               </Text>
             </Pressable>
             <Pressable
@@ -183,9 +193,7 @@ export function ModelCard({
             ]}
           >
             <Feather name="download" size={16} color={colors.primaryForeground} />
-            <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>
-              Download
-            </Text>
+            <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Download</Text>
           </Pressable>
         )}
       </View>
@@ -205,16 +213,20 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   pillText: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.3 },
-  title: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  description: { fontSize: 13.5, lineHeight: 19, fontFamily: "Inter_400Regular" },
-  // Capability badges
-  capBadge: {
+  title: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  description: { fontSize: 13, lineHeight: 18, fontFamily: "Inter_400Regular" },
+  // Capability icons row (screenshot style)
+  capRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  capIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  capBadgeText: { fontSize: 11.5, fontFamily: "Inter_600SemiBold" },
+  capLabel: { fontSize: 11.5, fontFamily: "Inter_600SemiBold" },
   // RAM warning
   ramWarn: {
     flexDirection: "row",

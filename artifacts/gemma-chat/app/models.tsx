@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Alert,
   Platform,
@@ -16,7 +16,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ModelCard } from "@/components/ModelCard";
 import { useModels } from "@/context/ModelContext";
 import { useColors } from "@/hooks/useColors";
-import { formatBytes } from "@/lib/models";
+import { formatBytes, type Capability } from "@/lib/models";
+
+type CapFilter = Capability | "all";
+
+const CAP_FILTERS: { value: CapFilter; label: string; icon: React.ComponentProps<typeof Feather>["name"]; color: string }[] = [
+  { value: "all",      label: "All",       icon: "grid",           color: "#6b7280" },
+  { value: "vision",   label: "Vision",    icon: "eye",            color: "#f59e0b" },
+  { value: "reasoning",label: "Reasoning", icon: "cpu",            color: "#a855f7" },
+  { value: "tool_use", label: "Tool Use",  icon: "tool",           color: "#06b6d4" },
+  { value: "coding",   label: "Coding",    icon: "code",           color: "#3b82f6" },
+  { value: "chat",     label: "Chat",      icon: "message-circle", color: "#22c55e" },
+];
 
 export default function ModelsScreen() {
   const colors = useColors();
@@ -37,13 +48,18 @@ export default function ModelsScreen() {
   const [showCustom, setShowCustom] = useState(false);
   const [customUrl, setCustomUrl] = useState("");
   const [customName, setCustomName] = useState("");
+  const [capFilter, setCapFilter] = useState<CapFilter>("all");
 
   const downloadedCount = downloadedIds.length;
-
   const totalBytes = downloadedModels.reduce((sum, dm) => {
     const model = models.find((m) => m.id === dm.id);
     return sum + (model?.sizeBytes ?? 0);
   }, 0);
+
+  const filteredModels = useMemo(() => {
+    if (capFilter === "all") return models;
+    return models.filter((m) => m.capabilities?.includes(capFilter as Capability));
+  }, [models, capFilter]);
 
   const handleAddCustom = () => {
     const url = customUrl.trim();
@@ -64,6 +80,7 @@ export default function ModelsScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* Header */}
       <View
         style={[
           styles.header,
@@ -90,6 +107,34 @@ export default function ModelsScreen() {
         </Pressable>
       </View>
 
+      {/* Capability filter row */}
+      <View style={[styles.filterBar, { borderBottomColor: colors.border }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {CAP_FILTERS.map((f) => {
+            const active = capFilter === f.value;
+            return (
+              <Pressable
+                key={f.value}
+                onPress={() => setCapFilter(f.value)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: active ? f.color + "22" : colors.secondary,
+                    borderColor: active ? f.color : colors.border,
+                    borderWidth: active ? 1.5 : 1,
+                  },
+                ]}
+              >
+                <Feather name={f.icon} size={13} color={active ? f.color : colors.mutedForeground} />
+                <Text style={[styles.filterChipText, { color: active ? f.color : colors.mutedForeground }]}>
+                  {f.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       <ScrollView
         contentContainerStyle={{
           padding: 16,
@@ -108,8 +153,8 @@ export default function ModelsScreen() {
             </Text>
             <Text style={[styles.summarySub, { color: colors.accentForeground, opacity: 0.85 }]}>
               {totalBytes > 0
-                ? `${formatBytes(totalBytes)} used on device`
-                : "Once downloaded, models run on-device with no internet."}
+                ? `${formatBytes(totalBytes)} used on device · ${filteredModels.length} models shown`
+                : `${filteredModels.length} models available · Download over Wi-Fi`}
             </Text>
           </View>
         </View>
@@ -152,24 +197,34 @@ export default function ModelsScreen() {
           </View>
         )}
 
-        {models.map((m) => (
-          <ModelCard
-            key={m.id}
-            model={m}
-            downloadState={downloadState[m.id]}
-            isDownloaded={downloadedIds.includes(m.id)}
-            isActive={activeModelId === m.id}
-            onDownload={() => startDownload(m.id)}
-            onCancel={() => cancelDownload(m.id)}
-            onDelete={() => deleteModel(m.id)}
-            onActivate={() => setActiveModel(m.id)}
-          />
-        ))}
+        {/* Model cards */}
+        {filteredModels.length === 0 ? (
+          <View style={[styles.emptyFilter, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="search" size={24} color={colors.mutedForeground} />
+            <Text style={[styles.emptyFilterText, { color: colors.mutedForeground }]}>
+              No models match this filter
+            </Text>
+          </View>
+        ) : (
+          filteredModels.map((m) => (
+            <ModelCard
+              key={m.id}
+              model={m}
+              downloadState={downloadState[m.id]}
+              isDownloaded={downloadedIds.includes(m.id)}
+              isActive={activeModelId === m.id}
+              onDownload={() => startDownload(m.id)}
+              onCancel={() => cancelDownload(m.id)}
+              onDelete={() => deleteModel(m.id)}
+              onActivate={() => setActiveModel(m.id)}
+            />
+          ))
+        )}
 
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="info" size={16} color={colors.mutedForeground} />
           <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-            Tip: download over Wi-Fi. Files are large and stay on your device forever once downloaded. Tap + to add any GGUF from Hugging Face.
+            Tap + to add any custom GGUF from Hugging Face. Download over Wi-Fi — files are large. All models run fully offline once downloaded.
           </Text>
         </View>
       </ScrollView>
@@ -179,10 +234,23 @@ export default function ModelsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  header: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 8, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   title: { fontSize: 17, fontFamily: "Inter_700Bold" },
   iconBtn: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  summary: { flexDirection: "row", gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, alignItems: "flex-start" },
+  filterBar: { borderBottomWidth: StyleSheet.hairlineWidth },
+  filterScroll: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  filterChip: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+  },
+  filterChipText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
+  summary: {
+    flexDirection: "row", gap: 12, padding: 14,
+    borderRadius: 14, borderWidth: 1, alignItems: "flex-start",
+  },
   summaryText: { flex: 1, gap: 2 },
   summaryTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   summarySub: { fontSize: 12.5, fontFamily: "Inter_400Regular", lineHeight: 17 },
@@ -192,6 +260,8 @@ const styles = StyleSheet.create({
   customActions: { flexDirection: "row", gap: 8 },
   customBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
   customBtnText: { fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
+  emptyFilter: { padding: 32, borderRadius: 16, borderWidth: 1, alignItems: "center", gap: 8 },
+  emptyFilterText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   infoCard: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, alignItems: "flex-start" },
   infoText: { flex: 1, fontSize: 12.5, lineHeight: 17, fontFamily: "Inter_400Regular" },
 });
