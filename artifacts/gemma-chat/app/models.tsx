@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Alert,
   Platform,
@@ -217,6 +217,16 @@ export default function ModelsScreen() {
               onCancel={() => cancelDownload(m.id)}
               onDelete={() => deleteModel(m.id)}
               onActivate={() => setActiveModel(m.id)}
+              onTryPrompt={(prompt) => {
+                if (!downloadedIds.includes(m.id)) {
+                  router.back();
+                  router.push({ pathname: "/", params: { prompt } });
+                } else {
+                  setActiveModel(m.id);
+                  router.back();
+                  router.push({ pathname: "/", params: { prompt } });
+                }
+              }}
             />
           ))
         )}

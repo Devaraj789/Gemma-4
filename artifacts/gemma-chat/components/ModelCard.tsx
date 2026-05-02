@@ -1,8 +1,9 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ProgressBar } from "@/components/ProgressBar";
+import { ModelSuggestionsSheet } from "@/components/ModelSuggestionsSheet";
 import type { DownloadState } from "@/context/ModelContext";
 import { useColors } from "@/hooks/useColors";
 import type { Capability, ModelVariant } from "@/lib/models";
@@ -16,6 +17,7 @@ type Props = {
   onCancel: () => void;
   onDelete: () => void;
   onActivate: () => void;
+  onTryPrompt?: (prompt: string) => void;
 };
 
 type CapabilityConfig = {
@@ -43,12 +45,15 @@ export function ModelCard({
   onCancel,
   onDelete,
   onActivate,
+  onTryPrompt,
 }: Props) {
   const colors = useColors();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const status = downloadState?.status ?? "idle";
   const progress = downloadState?.progress ?? 0;
 
   const isLoading = status === "loading";
+  const hasCaps = (model.capabilities?.length ?? 0) > 0;
 
   return (
     <View
@@ -146,57 +151,90 @@ export function ModelCard({
       )}
 
       {/* Actions */}
-      <View style={styles.actionsRow}>
-        {isDownloaded ? (
-          <>
-            <Pressable
-              onPress={onActivate}
-              disabled={isActive || isLoading}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                {
-                  backgroundColor: isActive ? colors.muted : colors.primary,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Feather
-                name={isLoading ? "loader" : isActive ? "check" : "zap"}
-                size={16}
-                color={isActive ? colors.mutedForeground : colors.primaryForeground}
-              />
-              <Text
-                style={[
-                  styles.primaryBtnText,
-                  { color: isActive ? colors.mutedForeground : colors.primaryForeground },
+      <View style={styles.actionsCol}>
+        <View style={styles.actionsRow}>
+          {isDownloaded ? (
+            <>
+              <Pressable
+                onPress={onActivate}
+                disabled={isActive || isLoading}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: isActive ? colors.muted : colors.primary,
+                    opacity: pressed ? 0.85 : 1,
+                  },
                 ]}
               >
-                {isLoading ? "Loading…" : isActive ? "Active" : "Use this model"}
-              </Text>
-            </Pressable>
+                <Feather
+                  name={isLoading ? "loader" : isActive ? "check" : "zap"}
+                  size={16}
+                  color={isActive ? colors.mutedForeground : colors.primaryForeground}
+                />
+                <Text
+                  style={[
+                    styles.primaryBtnText,
+                    { color: isActive ? colors.mutedForeground : colors.primaryForeground },
+                  ]}
+                >
+                  {isLoading ? "Loading…" : isActive ? "Active" : "Use this model"}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={onDelete}
+                style={({ pressed }) => [
+                  styles.iconOnlyBtn,
+                  { backgroundColor: colors.secondary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Feather name="trash-2" size={16} color={colors.destructive} />
+              </Pressable>
+            </>
+          ) : status === "downloading" ? null : (
             <Pressable
-              onPress={onDelete}
+              onPress={onDownload}
               style={({ pressed }) => [
-                styles.iconOnlyBtn,
-                { backgroundColor: colors.secondary, opacity: pressed ? 0.85 : 1 },
+                styles.primaryBtn,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              <Feather name="trash-2" size={16} color={colors.destructive} />
+              <Feather name="download" size={16} color={colors.primaryForeground} />
+              <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Download</Text>
             </Pressable>
-          </>
-        ) : status === "downloading" ? null : (
+          )}
+        </View>
+
+        {/* "What can I do?" button — always visible if model has capabilities */}
+        {hasCaps && (
           <Pressable
-            onPress={onDownload}
+            onPress={() => setSheetOpen(true)}
             style={({ pressed }) => [
-              styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+              styles.whatCanIDoBtn,
+              {
+                backgroundColor: pressed ? colors.accent + "cc" : colors.accent,
+                borderColor: colors.primary + "40",
+              },
             ]}
           >
-            <Feather name="download" size={16} color={colors.primaryForeground} />
-            <Text style={[styles.primaryBtnText, { color: colors.primaryForeground }]}>Download</Text>
+            <Feather name="help-circle" size={15} color={colors.primary} />
+            <Text style={[styles.whatCanIDoBtnText, { color: colors.primary }]}>
+              What can I do with this model?
+            </Text>
+            <Feather name="chevron-right" size={14} color={colors.primary} />
           </Pressable>
         )}
       </View>
+
+      {/* Suggestions sheet */}
+      <ModelSuggestionsSheet
+        model={model}
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSelectPrompt={(prompt) => {
+          setSheetOpen(false);
+          onTryPrompt?.(prompt);
+        }}
+      />
     </View>
   );
 }
@@ -245,7 +283,19 @@ const styles = StyleSheet.create({
   progressLabelRow: { flexDirection: "row", justifyContent: "space-between" },
   progressLabel: { fontSize: 12.5, fontFamily: "Inter_500Medium" },
   cancelText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
+  actionsCol: { gap: 8 },
   actionsRow: { flexDirection: "row", gap: 8 },
+  whatCanIDoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  whatCanIDoBtnText: { flex: 1, fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
   primaryBtn: {
     flex: 1, flexDirection: "row", alignItems: "center",
     justifyContent: "center", paddingVertical: 12, borderRadius: 12, gap: 8,

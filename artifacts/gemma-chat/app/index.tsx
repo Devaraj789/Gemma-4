@@ -1,5 +1,5 @@
-import { router } from "expo-router";
-import React, { useCallback, useMemo, useRef } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
   FlatList,
   Platform,
@@ -33,6 +33,15 @@ export default function ChatScreen() {
   const { activeModel } = useModels();
   const { settings } = useSettings();
   const listRef = useRef<FlatList>(null);
+  const params = useLocalSearchParams<{ prompt?: string }>();
+  const [prefill, setPrefill] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (params.prompt) {
+      setPrefill(params.prompt);
+      router.setParams({ prompt: undefined });
+    }
+  }, [params.prompt]);
 
   const messages = useMemo(() => {
     if (!active) return [];
@@ -91,12 +100,13 @@ export default function ChatScreen() {
 
         <View style={{ paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 12) : insets.bottom }}>
           <ChatInput
-            onSend={handleSend}
+            onSend={(text) => { setPrefill(null); handleSend(text); }}
             onStop={stopGeneration}
             isGenerating={isGenerating}
             disabled={!activeModel}
             hapticsEnabled={settings.haptics}
             placeholder={activeModel ? "Message Gemma…" : "Download a model first to start chatting"}
+            prefillText={prefill}
           />
         </View>
       </KeyboardAvoidingView>
