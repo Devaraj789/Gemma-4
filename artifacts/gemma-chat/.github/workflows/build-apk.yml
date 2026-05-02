@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Gemma Offline Chat APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Java 17 (required for modern Android builds) ──────────────────
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      # ── 3. Node.js 20 ────────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: artifacts/gemma-chat/package-lock.json
+
+      # ── 4. Install npm deps ───────────────────────────────────────────────
+      - name: Install dependencies
+        working-directory: artifacts/gemma-chat
+        run: npm install --legacy-peer-deps
+
+      # ── 5. Android NDK (needed for llama.rn C++ inference engine) ─────────
+      - name: Setup Android SDK + NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK 26
+        run: |
+          echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "ndk;26.3.11579264" --sdk_root=$ANDROID_SDK_ROOT
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
+          echo "NDK installed ✅"
+
+      # ── 6. Expo Prebuild → generates android/ native folder ────────────────
+      - name: Expo Prebuild (generate native Android project)
+        working-directory: artifacts/gemma-chat
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          EXPO_NO_TELEMETRY: "1"
+          CI: "1"
+
+      # ── 7. Make gradlew executable ────────────────────────────────────────
+      - name: Make Gradlew executable
+        working-directory: artifacts/gemma-chat/android
+        run: chmod +x gradlew
+
+      # ── 8. Build Debug APK ────────────────────────────────────────────────
+      - name: Build Debug APK
+        working-directory: artifacts/gemma-chat/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g"
+
+      # ── 9. Upload APK as downloadable artifact ────────────────────────────
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemma-offline-chat-debug
+          path: artifacts/gemma-chat/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
