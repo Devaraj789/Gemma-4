@@ -4,10 +4,16 @@ import type { Message } from "@/context/ChatContext";
 let activeContext: LlamaContext | null = null;
 let activeModelPath: string | null = null;
 let loadingPromise: Promise<LlamaContext> | null = null;
+let lastLoadTimeMs = 0;
+
+export function getLastLoadTimeMs(): number {
+  return lastLoadTimeMs;
+}
 
 export async function loadModel(modelPath: string): Promise<void> {
   if (activeModelPath === modelPath && activeContext) return;
   await unloadModel();
+  const t0 = Date.now();
   loadingPromise = initLlama({
     model: modelPath,
     n_ctx: 2048,
@@ -19,6 +25,7 @@ export async function loadModel(modelPath: string): Promise<void> {
   try {
     activeContext = await loadingPromise;
     activeModelPath = modelPath;
+    lastLoadTimeMs = Date.now() - t0;
   } finally {
     loadingPromise = null;
   }
