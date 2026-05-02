@@ -35,6 +35,7 @@ export type Conversation = {
   createdAt: number;
   updatedAt: number;
   modelId?: string;
+  pinned?: boolean;
 };
 
 type ChatContextValue = {
@@ -44,6 +45,9 @@ type ChatContextValue = {
   setActiveId: (id: string | null) => void;
   newConversation: () => string;
   deleteConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
+  pinConversation: (id: string) => void;
+  unpinConversation: (id: string) => void;
   clearAll: () => void;
   sendMessage: (text: string, modelId: string | null) => Promise<void>;
   stopGeneration: () => void;
@@ -51,6 +55,8 @@ type ChatContextValue = {
   generatingStats: MessageStats | null;
   ready: boolean;
   exportConversations: () => Promise<string>;
+  exportConversation: (id: string) => Promise<string>;
+  deleteMessage: (convId: string, msgId: string) => void;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -77,15 +83,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const storedActive = await loadJSON<string | null>(StorageKeys.ACTIVE_CONVERSATION, null);
       if (!mounted) return;
 
-      // Auto-delete old chats based on setting
       const { autoDeleteDays } = settings;
       let filtered = stored;
       if (autoDeleteDays > 0) {
         const cutoff = Date.now() - autoDeleteDays * 24 * 60 * 60 * 1000;
-        filtered = stored.filter((c) => c.updatedAt >= cutoff);
-        if (filtered.length !== stored.length) {
-          void saveJSON(StorageKeys.CONVERSATIONS, filtered);
-        }
+        filtered = stored.filter((c) => c.updatedAt >= cutoff || c.pinned);
+        if (filtered.length !== stored.length) void saveJSON(StorageKeys.CONVERSATIONS, filtered);
       }
 
       setConversations(filtered);
@@ -109,13 +112,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const newConversation = useCallback((): string => {
     const id = uuid();
-    const conv: Conversation = {
-      id,
-      title: "New chat",
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    const conv: Conversation = { id, title: "New chat", messages: [], createdAt: Date.now(), updatedAt: Date.now() };
     setConversations((prev) => {
       const next = [conv, ...prev];
       void saveJSON(StorageKeys.CONVERSATIONS, next);
@@ -137,16 +134,51 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [activeId, setActiveId],
   );
 
-  const clearAll = useCallback(() => {
-    persist([]);
-    setActiveId(null);
-  }, [persist, setActiveId]);
+  const renameConversation = useCallback((id: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    setConversations((prev) => {
+      const next = prev.map((c) => c.id === id ? { ...c, title: trimmed } : c);
+      void saveJSON(StorageKeys.CONVERSATIONS, next);
+      return next;
+    });
+  }, []);
+
+  const pinConversation = useCallback((id: string) => {
+    setConversations((prev) => {
+      const next = prev.map((c) => c.id === id ? { ...c, pinned: true } : c);
+      void saveJSON(StorageKeys.CONVERSATIONS, next);
+      return next;
+    });
+  }, []);
+
+  const unpinConversation = useCallback((id: string) => {
+    setConversations((prev) => {
+      const next = prev.map((c) => c.id === id ? { ...c, pinned: false } : c);
+      void saveJSON(StorageKeys.CONVERSATIONS, next);
+      return next;
+    });
+  }, []);
+
+  const clearAll = useCallback(() => { persist([]); setActiveId(null); }, [persist, setActiveId]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setIsGenerating(false);
     setGeneratingStats(null);
+  }, []);
+
+  // Feature 7: Delete individual message
+  const deleteMessage = useCallback((convId: string, msgId: string) => {
+    setConversations((prev) => {
+      const next = prev.map((c) => {
+        if (c.id !== convId) return c;
+        return { ...c, messages: c.messages.filter((m) => m.id !== msgId), updatedAt: Date.now() };
+      });
+      void saveJSON(StorageKeys.CONVERSATIONS, next);
+      return next;
+    });
   }, []);
 
   const exportConversations = useCallback(async (): Promise<string> => {
@@ -157,7 +189,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     lines.push("");
     for (const conv of conversations) {
       lines.push("---");
-      lines.push(`## ${conv.title}`);
+      lines.push(`## ${conv.title}${conv.pinned ? " 📌" : ""}`);
       lines.push(`Date: ${new Date(conv.createdAt).toLocaleString()}`);
       lines.push(`Messages: ${conv.messages.length}`);
       lines.push("");
@@ -166,6 +198,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         lines.push(`[${role}]: ${msg.content}`);
         lines.push("");
       }
+    }
+    return lines.join("\n");
+  }, [conversations]);
+
+  // Feature 9: Export single conversation
+  const exportConversation = useCallback(async (id: string): Promise<string> => {
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return "";
+    const lines: string[] = [];
+    lines.push(`# ${conv.title}`);
+    lines.push(`Date: ${new Date(conv.createdAt).toLocaleString()}`);
+    lines.push(`Messages: ${conv.messages.length}`);
+    lines.push("");
+    for (const msg of conv.messages) {
+      const role = msg.role === "user" ? "You" : "Gemma";
+      lines.push(`[${role}]: ${msg.content}`);
+      lines.push("");
     }
     return lines.join("\n");
   }, [conversations]);
@@ -186,11 +235,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         let next: Conversation[];
         if (isNewConv) {
           const conv: Conversation = {
-            id: convId!,
-            title: inferTitle(trimmed),
+            id: convId!, title: inferTitle(trimmed),
             messages: [userMsg, placeholder],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: Date.now(), updatedAt: Date.now(),
             modelId: modelId ?? undefined,
           };
           next = [conv, ...prev];
@@ -198,8 +245,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           next = prev.map((c) => {
             if (c.id !== convId) return c;
             return {
-              ...c,
-              messages: [...c.messages, userMsg, placeholder],
+              ...c, messages: [...c.messages, userMsg, placeholder],
               updatedAt: Date.now(),
               title: c.messages.length === 0 ? inferTitle(trimmed) : c.title,
               modelId: c.modelId ?? modelId ?? undefined,
@@ -220,9 +266,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setConversations((prev) => {
           const next = prev.map((c) => {
             if (c.id !== convId) return c;
-            const msgs = c.messages.map((m) =>
-              m.id === placeholder.id ? { ...m, content, stats } : m,
-            );
+            const msgs = c.messages.map((m) => m.id === placeholder.id ? { ...m, content, stats } : m);
             return { ...c, messages: msgs, updatedAt: Date.now() };
           });
           return next;
@@ -230,9 +274,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       };
 
       try {
-        const baseConv = isNewConv
-          ? { messages: [userMsg] as Message[] }
-          : conversations.find((c) => c.id === convId);
+        const baseConv = isNewConv ? { messages: [userMsg] as Message[] } : conversations.find((c) => c.id === convId);
         const history = baseConv?.messages ?? [userMsg];
         const messagesForEngine: Message[] = isNewConv ? [userMsg] : [...history, userMsg];
 
@@ -240,8 +282,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         let liveStats: MessageStats = { tokensPerSec: 0, totalTokens: 0 };
 
         await generate({
-          messages: messagesForEngine,
-          settings,
+          messages: messagesForEngine, settings,
           signal: controller.signal,
           onToken: (chunk) => {
             if (chunk.done) return;
@@ -256,8 +297,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         setConversations((prev) => { void saveJSON(StorageKeys.CONVERSATIONS, prev); return prev; });
       } catch (err) {
-        const errorText =
-          err instanceof Error ? `Generation failed: ${err.message}` : "Generation failed.";
+        const errorText = err instanceof Error ? `Generation failed: ${err.message}` : "Generation failed.";
         updateAssistant(errorText);
       } finally {
         abortRef.current = null;
@@ -268,27 +308,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [activeId, conversations, settings, setActiveId],
   );
 
-  const active = useMemo(
-    () => conversations.find((c) => c.id === activeId) ?? null,
-    [conversations, activeId],
-  );
+  const active = useMemo(() => conversations.find((c) => c.id === activeId) ?? null, [conversations, activeId]);
 
   return (
     <ChatContext.Provider
       value={{
-        conversations,
-        active,
-        activeId,
-        setActiveId,
-        newConversation,
-        deleteConversation,
-        clearAll,
-        sendMessage,
-        stopGeneration,
-        isGenerating,
-        generatingStats,
-        ready,
-        exportConversations,
+        conversations, active, activeId, setActiveId,
+        newConversation, deleteConversation, renameConversation,
+        pinConversation, unpinConversation, clearAll,
+        sendMessage, stopGeneration, isGenerating, generatingStats,
+        ready, exportConversations, exportConversation, deleteMessage,
       }}
     >
       {children}

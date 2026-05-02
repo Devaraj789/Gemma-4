@@ -1,0 +1,181 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Gemma Offline Chat APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Node + pnpm ─────────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "store=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-
+
+      # ── 3. Java + Android SDK ──────────────────────────────────────────────
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build tools + NDK 26
+        run: |
+          echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "ndk;26.3.11579264" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            --sdk_root=$ANDROID_SDK_ROOT
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/26.3.11579264" >> $GITHUB_ENV
+
+      # ── 4. Install workspace dependencies ──────────────────────────────────
+      #    Run from repo root so pnpm resolves workspace:* packages
+      - name: Install all workspace dependencies
+        run: pnpm install --no-frozen-lockfile
+        env:
+          EXPO_NO_TELEMETRY: "1"
+
+      # ── 5. Gradle cache ────────────────────────────────────────────────────
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      # ── 6. Expo Prebuild ───────────────────────────────────────────────────
+      - name: Expo Prebuild (Android)
+        working-directory: artifacts/gemma-chat
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          EXPO_NO_TELEMETRY: "1"
+          CI: "1"
+
+      # ── 7. Patch build.gradle ──────────────────────────────────────────────
+      - name: Patch build.gradle — universal APK (arm64-v8a + armeabi-v7a)
+        working-directory: artifacts/gemma-chat
+        run: |
+          python3 - << 'PYEOF'
+          import re, sys
+
+          path = "android/app/build.gradle"
+          with open(path, "r") as f:
+              content = f.read()
+
+          # Insert ndk abiFilters block inside defaultConfig
+          if "abiFilters" not in content:
+              ndk_block = (
+                  "\n        ndk {\n"
+                  '            abiFilters "arm64-v8a", "armeabi-v7a"\n'
+                  "        }"
+              )
+              content = re.sub(
+                  r"(defaultConfig\s*\{)",
+                  r"\1" + ndk_block,
+                  content,
+                  count=1,
+              )
+              print("✓ abiFilters added")
+
+          # Disable per-arch ABI splits → one universal APK
+          content = re.sub(
+              r"(splits\s*\{[^}]*abi\s*\{[^}]*)enable\s+true",
+              r"\g<1>enable false",
+              content,
+              flags=re.DOTALL,
+          )
+          print("✓ ABI splits disabled")
+
+          # Ensure minSdkVersion is at least 23 (required by whisper.rn / llama.rn)
+          content = re.sub(r"minSdkVersion\s+\d+", "minSdkVersion 23", content)
+          print("✓ minSdkVersion = 23")
+
+          with open(path, "w") as f:
+              f.write(content)
+
+          print("build.gradle patched — universal APK ready")
+          PYEOF
+
+      # ── 8. Patch gradle.properties ─────────────────────────────────────────
+      - name: Patch gradle.properties — increase JVM heap
+        working-directory: artifacts/gemma-chat/android
+        run: |
+          echo "" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError" >> gradle.properties
+          echo "org.gradle.daemon=false" >> gradle.properties
+          echo "org.gradle.parallel=true" >> gradle.properties
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> gradle.properties
+
+      # ── 9. Build Debug APK ─────────────────────────────────────────────────
+      - name: Make gradlew executable
+        working-directory: artifacts/gemma-chat/android
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        working-directory: artifacts/gemma-chat/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+
+      # ── 10. Upload APK ──────────────────────────────────────────────────────
+      - name: Find APK path
+        id: apk-path
+        run: |
+          APK=$(find artifacts/gemma-chat/android/app/build/outputs/apk/debug -name "*.apk" | head -1)
+          echo "path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gemma-offline-chat-debug-${{ github.run_number }}
+          path: ${{ steps.apk-path.outputs.path }}
+          retention-days: 30
+          if-no-files-found: error
+
+      # ── 11. Summary ────────────────────────────────────────────────────────
+      - name: Build summary
+        if: success()
+        run: |
+          echo "## ✅ APK Build Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**App:** Gemma Offline Chat" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** com.devarajrdx9.gemmachat" >> $GITHUB_STEP_SUMMARY
+          echo "**ABI:** arm64-v8a + armeabi-v7a (universal)" >> $GITHUB_STEP_SUMMARY
+          echo "**Run:** #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the APK from the **Artifacts** section above ⬆️" >> $GITHUB_STEP_SUMMARY

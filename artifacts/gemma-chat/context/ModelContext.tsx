@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Platform, ToastAndroid } from "react-native";
 
 import * as Llama from "@/lib/llama";
 import { GEMMA_MODELS, type ModelVariant } from "@/lib/models";
@@ -37,6 +38,11 @@ type ModelContextValue = {
   activeModel: ModelVariant | null;
   activeModelLoaded: boolean;
   downloadState: Record<string, DownloadState>;
+  downloadQueue: string[];
+  addToQueue: (id: string) => void;
+  removeFromQueue: (id: string) => void;
+  clearQueue: () => void;
+  startQueue: () => void;
   startDownload: (id: string) => void;
   cancelDownload: (id: string) => void;
   deleteModel: (id: string) => void;
@@ -60,7 +66,6 @@ function getLocalPath(model: ModelVariant): string {
   return MODELS_DIR + model.id + ".gguf";
 }
 
-// Mutable registry for custom models added at runtime
 const customModels: ModelVariant[] = [];
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
@@ -70,7 +75,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [downloadState, setDownloadState] = useState<Record<string, DownloadState>>({});
   const [allModels, setAllModels] = useState<ModelVariant[]>(GEMMA_MODELS);
   const [ready, setReady] = useState<boolean>(false);
+  const [downloadQueue, setDownloadQueue] = useState<string[]>([]);
   const downloadsRef = useRef<Record<string, FileSystem.DownloadResumable | undefined>>({});
+  const startDownloadRef = useRef<(id: string) => void>(() => {});
 
   useEffect(() => {
     let mounted = true;
@@ -138,19 +145,42 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
 
   const downloadedIds = useMemo(() => downloadedModels.map((d) => d.id), [downloadedModels]);
 
+  useEffect(() => {
+    if (downloadQueue.length === 0) return;
+    const isAnyDownloading = Object.values(downloadState).some((d) => d.status === "downloading");
+    if (isAnyDownloading) return;
+
+    const nextId = downloadQueue[0];
+    if (!nextId) return;
+
+    if (downloadedIds.includes(nextId)) {
+      setDownloadQueue((prev) => prev.slice(1));
+      return;
+    }
+
+    setDownloadQueue((prev) => prev.slice(1));
+    startDownloadRef.current(nextId);
+  }, [downloadQueue, downloadState, downloadedIds]);
+
+  const addToQueue = useCallback((id: string) => {
+    setDownloadQueue((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const removeFromQueue = useCallback((id: string) => {
+    setDownloadQueue((prev) => prev.filter((qid) => qid !== id));
+  }, []);
+
+  const clearQueue = useCallback(() => { setDownloadQueue([]); }, []);
+
+  const startQueue = useCallback(() => { setDownloadQueue((prev) => [...prev]); }, []);
+
   const addCustomModel = useCallback((opts: { name: string; url: string }) => {
     const id = "custom-" + uuid().slice(0, 8);
     const custom: ModelVariant = {
-      id,
-      name: opts.name,
-      shortName: opts.name,
+      id, name: opts.name, shortName: opts.name,
       description: "Custom user-added model",
-      sizeLabel: "Unknown",
-      sizeBytes: 0,
-      ramRequiredGb: 4,
-      quantization: "GGUF",
-      format: "gguf",
-      downloadUrl: opts.url,
+      sizeLabel: "Unknown", sizeBytes: 0, ramRequiredGb: 4,
+      quantization: "GGUF", format: "gguf", downloadUrl: opts.url,
       badges: ["GGUF", "Custom"],
     };
     customModels.push(custom);
@@ -232,6 +262,11 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
           });
           setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
 
+          // Feature 3: Download complete toast notification
+          if (Platform.OS === "android") {
+            ToastAndroid.show(`✅ ${model.shortName} downloaded!`, ToastAndroid.LONG);
+          }
+
           setActiveModelIdState((curr) => {
             if (curr) return curr;
             void saveJSON(StorageKeys.ACTIVE_MODEL, id);
@@ -256,6 +291,8 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     },
     [allModels, downloadedIds, downloadState],
   );
+
+  startDownloadRef.current = startDownload;
 
   const deleteModel = useCallback(
     (id: string) => {
@@ -292,19 +329,12 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   return (
     <ModelContext.Provider
       value={{
-        models: allModels,
-        downloadedIds,
-        downloadedModels,
-        activeModelId,
-        activeModel,
-        activeModelLoaded,
-        downloadState,
-        startDownload,
-        cancelDownload,
-        deleteModel,
-        setActiveModel,
-        addCustomModel,
-        ready,
+        models: allModels, downloadedIds, downloadedModels,
+        activeModelId, activeModel, activeModelLoaded,
+        downloadState, downloadQueue,
+        addToQueue, removeFromQueue, clearQueue, startQueue,
+        startDownload, cancelDownload, deleteModel,
+        setActiveModel, addCustomModel, ready,
       }}
     >
       {children}

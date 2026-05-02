@@ -18,6 +18,8 @@ export type Settings = {
   haptics: boolean;
   fontSize: "small" | "medium" | "large";
   autoDeleteDays: number;
+  language: string;
+  localDataOnly: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -31,6 +33,8 @@ const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   fontSize: "medium",
   autoDeleteDays: 0,
+  language: "English",
+  localDataOnly: true,
 };
 
 type SettingsContextValue = {
