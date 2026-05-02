@@ -75,6 +75,7 @@ export function ModelCard({
         <View style={styles.badgeRow}>
           {model.capabilities.map((cap) => {
             const cfg = CAPABILITY_CONFIG[cap];
+            if (!cfg) return null; // ✅ safe check add
             return (
               <View
                 key={cap}

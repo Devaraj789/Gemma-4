@@ -10,13 +10,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { ModelCard } from "@/components/ModelCard";
 import { useModels } from "@/context/ModelContext";
 import { useColors } from "@/hooks/useColors";
 import { getRecommendedModel } from "@/lib/models";
 
-// Honor 9 Lite = 3GB RAM
 const DEVICE_RAM_GB = 3;
 
 export default function ModelsScreen() {
@@ -74,7 +72,6 @@ export default function ModelsScreen() {
           gap: 12,
         }}
       >
-        {/* Downloaded summary */}
         <View
           style={[
             styles.summary,
@@ -88,15 +85,13 @@ export default function ModelsScreen() {
                 ? "No models downloaded yet"
                 : `${downloadedCount} model${downloadedCount === 1 ? "" : "s"} ready offline`}
             </Text>
-            <Text
-              style={[styles.summarySub, { color: colors.accentForeground, opacity: 0.85 }]}
-            >
+            <Text style={[styles.summarySub, { color: colors.accentForeground, opacity: 0.85 }]}>
               Once downloaded, models run on-device with no internet.
             </Text>
           </View>
         </View>
 
-        {/* ✅ RAM-based recommendation banner */}
+        {/* RAM recommendation banner */}
         <View
           style={[
             styles.ramBanner,
@@ -167,7 +162,6 @@ const styles = StyleSheet.create({
   summaryText: { flex: 1, gap: 2 },
   summaryTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   summarySub: { fontSize: 12.5, fontFamily: "Inter_400Regular", lineHeight: 17 },
-  // ✅ RAM banner
   ramBanner: {
     flexDirection: "row", alignItems: "center",
     gap: 10, padding: 12, borderRadius: 12, borderWidth: 1,
