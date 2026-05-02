@@ -20,12 +20,20 @@ export type MessageStats = {
   loadTimeMs?: number;
 };
 
+export type Attachment = {
+  type: "image" | "document";
+  uri: string;
+  name?: string;
+  mimeType?: string;
+};
+
 export type Message = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: number;
   stats?: MessageStats;
+  attachments?: Attachment[];
 };
 
 export type Conversation = {
@@ -49,7 +57,7 @@ type ChatContextValue = {
   pinConversation: (id: string) => void;
   unpinConversation: (id: string) => void;
   clearAll: () => void;
-  sendMessage: (text: string, modelId: string | null) => Promise<void>;
+  sendMessage: (text: string, modelId: string | null, attachments?: Attachment[]) => Promise<void>;
   stopGeneration: () => void;
   isGenerating: boolean;
   generatingStats: MessageStats | null;
@@ -220,15 +228,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [conversations]);
 
   const sendMessage = useCallback(
-    async (text: string, modelId: string | null) => {
+    async (text: string, modelId: string | null, attachments?: Attachment[]) => {
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && (!attachments || attachments.length === 0)) return;
 
       let convId = activeId;
       let isNewConv = false;
       if (!convId) { convId = uuid(); isNewConv = true; }
 
-      const userMsg: Message = { id: uuid(), role: "user", content: trimmed, createdAt: Date.now() };
+      const userMsg: Message = {
+        id: uuid(), role: "user",
+        content: trimmed || (attachments?.length ? `[${attachments.length} image${attachments.length > 1 ? "s" : ""} attached]` : ""),
+        createdAt: Date.now(),
+        attachments,
+      };
       const placeholder: Message = { id: uuid(), role: "assistant", content: "", createdAt: Date.now() };
 
       setConversations((prev) => {

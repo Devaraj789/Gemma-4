@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Clipboard,
+  Image,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -13,11 +15,14 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import Markdown from "react-native-markdown-display";
-import * as Speech from "expo-speech";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import { Feather as F } from "@expo/vector-icons";
 import type { Message } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
 import { isMessageSaved, saveMessage, unsaveMessage } from "@/lib/savedMessages";
+import { CodeBlock } from "./CodeBlock";
+import * as Speech from "expo-speech";
 
 type FontSize = "small" | "medium" | "large";
 
@@ -46,6 +51,243 @@ function calcReadingTime(text: string): string {
   return `~${mins} min read`;
 }
 
+// ── Inline markdown renderer ──────────────────────────────────────────────────
+type Segment =
+  | { type: "code_fence"; lang: string; code: string }
+  | { type: "heading"; level: 1 | 2 | 3; text: string }
+  | { type: "bullet"; text: string; indent: number }
+  | { type: "numbered"; text: string; num: number }
+  | { type: "blockquote"; text: string }
+  | { type: "hr" }
+  | { type: "paragraph"; text: string };
+
+function parseMarkdown(md: string): Segment[] {
+  const segments: Segment[] = [];
+  const lines = md.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code fence
+    if (/^```/.test(line)) {
+      const lang = line.replace(/^```/, "").trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i])) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      segments.push({ type: "code_fence", lang, code: codeLines.join("\n") });
+      continue;
+    }
+
+    // HR
+    if (/^---+$|^\*\*\*+$/.test(line.trim())) {
+      segments.push({ type: "hr" });
+      i++;
+      continue;
+    }
+
+    // Heading
+    const hm = line.match(/^(#{1,3})\s+(.+)/);
+    if (hm) {
+      segments.push({ type: "heading", level: hm[1].length as 1 | 2 | 3, text: hm[2] });
+      i++;
+      continue;
+    }
+
+    // Blockquote
+    if (/^>\s?/.test(line)) {
+      segments.push({ type: "blockquote", text: line.replace(/^>\s?/, "") });
+      i++;
+      continue;
+    }
+
+    // Bullet
+    const bm = line.match(/^(\s*)[-*+]\s+(.+)/);
+    if (bm) {
+      segments.push({ type: "bullet", text: bm[2], indent: bm[1].length });
+      i++;
+      continue;
+    }
+
+    // Numbered list
+    const nm = line.match(/^\s*(\d+)\.\s+(.+)/);
+    if (nm) {
+      segments.push({ type: "numbered", text: nm[2], num: parseInt(nm[1]) });
+      i++;
+      continue;
+    }
+
+    // Paragraph (collect consecutive non-special lines)
+    const paraLines: string[] = [];
+    while (
+      i < lines.length &&
+      !/^```/.test(lines[i]) &&
+      !/^#{1,3}\s/.test(lines[i]) &&
+      !/^[-*+]\s/.test(lines[i]) &&
+      !/^\d+\.\s/.test(lines[i]) &&
+      !/^>\s?/.test(lines[i]) &&
+      !/^---+$/.test(lines[i].trim())
+    ) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    const paraText = paraLines.join("\n").trim();
+    if (paraText) segments.push({ type: "paragraph", text: paraText });
+  }
+
+  return segments;
+}
+
+function applyInline(
+  text: string,
+  baseColor: string,
+  baseFontSize: number,
+  baseLineHeight: number,
+  primaryColor: string,
+): React.ReactNode {
+  // Bold (**...**), italic (*...*), inline code (`...`), strikethrough (~~...~~)
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g);
+  return parts.map((part, idx) => {
+    if (/^\*\*(.+)\*\*$/.test(part)) {
+      return (
+        <Text key={idx} style={{ fontFamily: "Inter_700Bold", color: baseColor, fontSize: baseFontSize, lineHeight: baseLineHeight }}>
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    if (/^\*(.+)\*$/.test(part) && !/^\*\*/.test(part)) {
+      return (
+        <Text key={idx} style={{ fontStyle: "italic", color: baseColor, fontSize: baseFontSize, lineHeight: baseLineHeight }}>
+          {part.slice(1, -1)}
+        </Text>
+      );
+    }
+    if (/^`(.+)`$/.test(part)) {
+      return (
+        <Text
+          key={idx}
+          style={{
+            fontFamily: "monospace",
+            fontSize: baseFontSize - 1.5,
+            backgroundColor: "rgba(110,118,129,0.2)",
+            color: "#e6edf3",
+            paddingHorizontal: 4,
+            borderRadius: 4,
+            lineHeight: baseLineHeight,
+          }}
+        >
+          {part.slice(1, -1)}
+        </Text>
+      );
+    }
+    if (/^~~(.+)~~$/.test(part)) {
+      return (
+        <Text key={idx} style={{ textDecorationLine: "line-through", color: baseColor, fontSize: baseFontSize, lineHeight: baseLineHeight }}>
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    // Link
+    const lm = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (lm) {
+      return (
+        <Text key={idx} style={{ color: primaryColor, textDecorationLine: "underline", fontSize: baseFontSize, lineHeight: baseLineHeight }}>
+          {lm[1]}
+        </Text>
+      );
+    }
+    return (
+      <Text key={idx} style={{ color: baseColor, fontSize: baseFontSize, lineHeight: baseLineHeight }}>
+        {part}
+      </Text>
+    );
+  });
+}
+
+function MarkdownRenderer({
+  content,
+  textColor,
+  primaryColor,
+  borderColor,
+  mutedColor,
+  fontSize,
+  lineHeight,
+}: {
+  content: string;
+  textColor: string;
+  primaryColor: string;
+  borderColor: string;
+  mutedColor: string;
+  fontSize: number;
+  lineHeight: number;
+}) {
+  const segments = parseMarkdown(content);
+
+  return (
+    <View style={{ gap: 4 }}>
+      {segments.map((seg, idx) => {
+        switch (seg.type) {
+          case "code_fence":
+            return <CodeBlock key={idx} code={seg.code} language={seg.lang} />;
+
+          case "heading": {
+            const hSize = seg.level === 1 ? fontSize + 5 : seg.level === 2 ? fontSize + 3 : fontSize + 1;
+            const hFamily = seg.level === 3 ? "Inter_600SemiBold" : "Inter_700Bold";
+            return (
+              <Text key={idx} style={{ color: textColor, fontSize: hSize, fontFamily: hFamily, marginTop: 6, marginBottom: 2 }}>
+                {applyInline(seg.text, textColor, hSize, hSize * 1.4, primaryColor)}
+              </Text>
+            );
+          }
+
+          case "bullet":
+            return (
+              <View key={idx} style={{ flexDirection: "row", paddingLeft: 8 + seg.indent * 12, gap: 6, alignItems: "flex-start" }}>
+                <Text style={{ color: mutedColor, fontSize: fontSize, lineHeight }}>•</Text>
+                <Text style={{ flex: 1, color: textColor, fontSize, lineHeight }}>
+                  {applyInline(seg.text, textColor, fontSize, lineHeight, primaryColor)}
+                </Text>
+              </View>
+            );
+
+          case "numbered":
+            return (
+              <View key={idx} style={{ flexDirection: "row", paddingLeft: 8, gap: 6, alignItems: "flex-start" }}>
+                <Text style={{ color: mutedColor, fontSize, lineHeight, minWidth: 22 }}>{seg.num}.</Text>
+                <Text style={{ flex: 1, color: textColor, fontSize, lineHeight }}>
+                  {applyInline(seg.text, textColor, fontSize, lineHeight, primaryColor)}
+                </Text>
+              </View>
+            );
+
+          case "blockquote":
+            return (
+              <View key={idx} style={{ borderLeftWidth: 3, borderLeftColor: borderColor, paddingLeft: 12, marginVertical: 2 }}>
+                <Text style={{ color: mutedColor, fontSize, lineHeight, fontStyle: "italic" }}>{seg.text}</Text>
+              </View>
+            );
+
+          case "hr":
+            return <View key={idx} style={{ height: StyleSheet.hairlineWidth, backgroundColor: borderColor, marginVertical: 6 }} />;
+
+          case "paragraph":
+          default:
+            return (
+              <Text key={idx} style={{ color: textColor, fontSize, lineHeight, fontFamily: "Inter_400Regular" }}>
+                {applyInline(seg.text, textColor, fontSize, lineHeight, primaryColor)}
+              </Text>
+            );
+        }
+      })}
+    </View>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function MessageBubble({
   message,
   showCursor,
@@ -69,6 +311,8 @@ export function MessageBubble({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [imageZoom, setImageZoom] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isUser && message.content.length > 0) {
@@ -109,6 +353,25 @@ export function MessageBubble({
     } catch { /* user cancelled */ }
   };
 
+  const handleDownloadResponse = async () => {
+    const filename = `gemma_response_${Date.now()}.md`;
+    if (Platform.OS === "web") {
+      const blob = new Blob([message.content], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    setDownloading(true);
+    const uri = `${FileSystem.cacheDirectory}${filename}`;
+    await FileSystem.writeAsStringAsync(uri, message.content);
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) await Sharing.shareAsync(uri, { mimeType: "text/markdown", dialogTitle: "Save response" });
+    if (Platform.OS === "android") ToastAndroid.show("Response saved!", ToastAndroid.SHORT);
+    setDownloading(false);
+  };
+
   const handleEdit = () => { setMenuVisible(false); onEdit?.(message); };
   const handleRetry = () => { setMenuVisible(false); onRetry?.(message); };
 
@@ -139,28 +402,22 @@ export function MessageBubble({
   const stats = message.stats;
   const showStats = !isUser && !showCursor && message.content.length > 0 && stats && (stats.tokensPerSec > 0 || (stats.loadTimeMs ?? 0) > 0);
   const readingTime = !isUser && !showCursor && message.content.length > 0 ? calcReadingTime(message.content) : "";
-
-  const mdStyles = {
-    body: { color: textColor, fontSize: fs, lineHeight: lh, fontFamily: "Inter_400Regular" },
-    strong: { fontFamily: "Inter_700Bold", color: textColor },
-    em: { fontStyle: "italic" as const, color: textColor },
-    code_inline: { backgroundColor: isUser ? "rgba(255,255,255,0.2)" : colors.muted, color: isUser ? "#fff" : colors.foreground, fontFamily: "monospace", fontSize: fs - 1, paddingHorizontal: 4, borderRadius: 4 },
-    fence: { backgroundColor: isUser ? "rgba(0,0,0,0.2)" : colors.muted, borderRadius: 8, padding: 10, marginVertical: 6 },
-    code_block: { backgroundColor: isUser ? "rgba(0,0,0,0.2)" : colors.muted, borderRadius: 8, padding: 10, marginVertical: 6, fontFamily: "monospace", fontSize: fs - 2, color: isUser ? "#fff" : colors.foreground },
-    bullet_list: { marginVertical: 4 },
-    ordered_list: { marginVertical: 4 },
-    list_item: { color: textColor, fontSize: fs },
-    heading1: { color: textColor, fontSize: fs + 4, fontFamily: "Inter_700Bold", marginBottom: 4, marginTop: 6 },
-    heading2: { color: textColor, fontSize: fs + 2, fontFamily: "Inter_700Bold", marginBottom: 3, marginTop: 5 },
-    heading3: { color: textColor, fontSize: fs + 1, fontFamily: "Inter_600SemiBold", marginBottom: 2, marginTop: 4 },
-    blockquote: { borderLeftWidth: 3, borderLeftColor: isUser ? "rgba(255,255,255,0.5)" : colors.border, paddingLeft: 10, marginVertical: 4 },
-    hr: { backgroundColor: colors.border, height: 1, marginVertical: 8 },
-    link: { color: isUser ? "#cce5ff" : colors.primary },
-    paragraph: { marginBottom: 0 },
-  };
+  const attachments = message.attachments ?? [];
 
   return (
     <>
+      {/* Image zoom modal */}
+      {imageZoom && (
+        <Modal transparent visible animationType="fade" onRequestClose={() => setImageZoom(null)}>
+          <Pressable style={styles.zoomOverlay} onPress={() => setImageZoom(null)}>
+            <Image source={{ uri: imageZoom }} style={styles.zoomImage} resizeMode="contain" />
+            <View style={styles.zoomClose}>
+              <Feather name="x" size={20} color="#fff" />
+            </View>
+          </Pressable>
+        </Modal>
+      )}
+
       {/* Long-press Modal — user message */}
       {isUser && (
         <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
@@ -203,15 +460,45 @@ export function MessageBubble({
         style={[styles.row, { justifyContent: isUser ? "flex-end" : "flex-start" }]}
       >
         <View style={[styles.bubble, { backgroundColor: bubbleColor, borderTopRightRadius: isUser ? 4 : 20, borderTopLeftRadius: isUser ? 20 : 4 }]}>
+          {/* Attached images in user bubble */}
+          {attachments.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.attachRow}>
+              {attachments.map((att, idx) => {
+                if (att.type === "image") {
+                  return (
+                    <Pressable key={idx} onPress={() => setImageZoom(att.uri)} style={styles.attachImageWrap}>
+                      <Image source={{ uri: att.uri }} style={styles.attachImage} resizeMode="cover" />
+                    </Pressable>
+                  );
+                }
+                return (
+                  <View key={idx} style={[styles.docChip, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
+                    <Feather name="file-text" size={14} color="#fff" />
+                    <Text style={styles.docChipText} numberOfLines={1}>{att.name ?? "Document"}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* Message content */}
           {!isUser && message.content.length > 0 ? (
             showRaw ? (
-              <Text style={[styles.text, { color: textColor, fontSize: fs, lineHeight: lh }]}>
-                {message.content + (showCursor ? "▌" : "")}
-              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Text style={[styles.text, { color: textColor, fontSize: fs, lineHeight: lh, fontFamily: "monospace" }]}>
+                  {message.content + (showCursor ? "▌" : "")}
+                </Text>
+              </ScrollView>
             ) : (
-              <Markdown style={mdStyles as any}>
-                {message.content + (showCursor ? "▌" : "")}
-              </Markdown>
+              <MarkdownRenderer
+                content={message.content + (showCursor ? "▌" : "")}
+                textColor={textColor}
+                primaryColor={colors.primary}
+                borderColor={colors.border}
+                mutedColor={colors.mutedForeground}
+                fontSize={fs}
+                lineHeight={lh}
+              />
             )
           ) : (
             <Text style={[styles.text, { color: textColor, fontSize: fs, lineHeight: lh }]}>
@@ -254,45 +541,34 @@ export function MessageBubble({
       {/* AI action bar */}
       {!isUser && !showCursor && message.content.length > 0 && (
         <View style={[styles.actionBar, { justifyContent: "flex-start" }]}>
-          {/* Copy */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: copied ? colors.accent : colors.secondary }]} onPress={handleCopy} activeOpacity={0.7}>
             <Feather name={copied ? "check" : "copy"} size={14} color={copied ? colors.accentForeground : colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Feature 1: Text-to-Speech */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isSpeaking ? colors.primary : colors.secondary }]} onPress={handleSpeak} activeOpacity={0.7}>
             <Feather name={isSpeaking ? "volume-x" : "volume-2"} size={14} color={isSpeaking ? colors.primaryForeground : colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Feature 2: Markdown raw/rendered toggle */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: showRaw ? colors.primary : colors.secondary }]} onPress={() => setShowRaw((p) => !p)} activeOpacity={0.7}>
             <Feather name={showRaw ? "type" : "code"} size={14} color={showRaw ? colors.primaryForeground : colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Share */}
+          {/* Download response */}
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: downloading ? colors.accent : colors.secondary }]} onPress={() => void handleDownloadResponse()} activeOpacity={0.7}>
+            <Feather name={downloading ? "check" : "download"} size={14} color={downloading ? colors.accentForeground : colors.mutedForeground} />
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={() => void handleShare()} activeOpacity={0.7}>
             <Feather name="share-2" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Thumbs */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "up" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "up" ? null : "up")} activeOpacity={0.7}>
             <Feather name="thumbs-up" size={14} color={liked === "up" ? colors.accentForeground : colors.mutedForeground} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "down" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "down" ? null : "down")} activeOpacity={0.7}>
             <Feather name="thumbs-down" size={14} color={liked === "down" ? colors.accentForeground : colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Retry */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleRetry} activeOpacity={0.7}>
             <Feather name="rotate-ccw" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Feature 10: Bookmark */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: bookmarked ? colors.primary + "22" : colors.secondary }]} onPress={() => void handleBookmark()} activeOpacity={0.7}>
             <Feather name="bookmark" size={14} color={bookmarked ? colors.primary : colors.mutedForeground} />
           </TouchableOpacity>
-
-          {/* Feature 7: Delete AI message */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleDelete} activeOpacity={0.7}>
             <Feather name="trash-2" size={14} color={colors.destructive} />
           </TouchableOpacity>
@@ -314,7 +590,6 @@ export function MessageBubble({
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleRetry} activeOpacity={0.7}>
             <Feather name="rotate-ccw" size={14} color={colors.mutedForeground} />
           </TouchableOpacity>
-          {/* Feature 7: Delete user message */}
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleDelete} activeOpacity={0.7}>
             <Feather name="trash-2" size={14} color={colors.destructive} />
           </TouchableOpacity>
@@ -326,8 +601,17 @@ export function MessageBubble({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 4 },
-  bubble: { maxWidth: "85%", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
+  bubble: { maxWidth: "88%", paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20, gap: 8 },
   text: { fontFamily: "Inter_400Regular" },
+  attachRow: { maxHeight: 120, marginBottom: 4 },
+  attachImageWrap: { borderRadius: 10, overflow: "hidden", marginRight: 8 },
+  attachImage: { width: 110, height: 110, borderRadius: 10 },
+  docChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, marginRight: 8,
+    maxWidth: 140,
+  },
+  docChipText: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   statsRow: { flexDirection: "row", paddingHorizontal: 20, paddingTop: 2, paddingBottom: 2, gap: 6, flexWrap: "wrap" },
   statPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   statText: { fontSize: 10.5, fontFamily: "Inter_500Medium" },
@@ -339,4 +623,7 @@ const styles = StyleSheet.create({
   menuItemBorder: { borderBottomWidth: StyleSheet.hairlineWidth },
   menuIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   menuText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  zoomOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
+  zoomImage: { width: "95%", height: "80%" },
+  zoomClose: { position: "absolute", top: 50, right: 20, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 20, padding: 8 },
 });

@@ -86,7 +86,9 @@ export default function ChatScreen() {
   const lastMessageId = active?.messages[active.messages.length - 1]?.id;
 
   const handleSend = useCallback(
-    (text: string) => { void sendMessage(text, activeModel?.id ?? null); },
+    (text: string, attachments?: import("@/context/ChatContext").Attachment[]) => {
+      void sendMessage(text, activeModel?.id ?? null, attachments);
+    },
     [sendMessage, activeModel],
   );
 

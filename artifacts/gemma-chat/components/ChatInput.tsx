@@ -1,22 +1,27 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import React, { useState, useEffect } from "react";
 import {
   ActivityIndicator,
+  Image,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   View,
   Text,
+  Alert,
 } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import type { Attachment } from "@/context/ChatContext";
 
 const MAX_CHARS = 4000;
 
 type Props = {
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments?: Attachment[]) => void;
   onStop: () => void;
   isGenerating: boolean;
   disabled?: boolean;
@@ -41,6 +46,7 @@ export function ChatInput({
   const colors = useColors();
   const [text, setText] = useState<string>("");
   const [justSaved, setJustSaved] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   useEffect(() => {
     if (prefillText != null) setText(prefillText);
@@ -53,12 +59,13 @@ export function ChatInput({
 
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+    if ((!trimmed && attachments.length === 0) || disabled) return;
     if (hapticsEnabled && Platform.OS !== "web") {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    onSend(trimmed);
+    onSend(trimmed, attachments.length > 0 ? attachments : undefined);
     setText("");
+    setAttachments([]);
   };
 
   const handleStop = () => {
@@ -82,8 +89,59 @@ export function ChatInput({
     else if (voiceState === "error") await cancelRecording();
   };
 
+  const handlePickImage = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Image picker not available on web preview", "Use on Android device.");
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo library access to attach images.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+      selectionLimit: 4,
+    });
+    if (!result.canceled) {
+      const newAttachments: Attachment[] = result.assets.map((a) => ({
+        type: "image" as const,
+        uri: a.uri,
+        name: a.fileName ?? `image_${Date.now()}.jpg`,
+        mimeType: a.mimeType ?? "image/jpeg",
+      }));
+      setAttachments((prev) => [...prev, ...newAttachments].slice(0, 4));
+    }
+  };
+
+  const handlePickCamera = async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Camera not available on web preview", "Use on Android device.");
+      return;
+    }
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow camera access to take photos.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      const a = result.assets[0];
+      setAttachments((prev) => [
+        ...prev,
+        { type: "image", uri: a.uri, name: `photo_${Date.now()}.jpg`, mimeType: "image/jpeg" },
+      ].slice(0, 4));
+    }
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const showStop = isGenerating;
-  const canSend = text.trim().length > 0 && !disabled;
+  const canSend = (text.trim().length > 0 || attachments.length > 0) && !disabled;
   const isRecording = voiceState === "recording";
   const isTranscribing = voiceState === "transcribing";
   const charCount = text.length;
@@ -92,6 +150,34 @@ export function ChatInput({
 
   return (
     <View style={[styles.wrapper, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      {/* Attachment preview strip */}
+      {attachments.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.attachPreviewBar}
+          contentContainerStyle={styles.attachPreviewContent}
+        >
+          {attachments.map((att, idx) => (
+            <View key={idx} style={styles.attachThumbWrap}>
+              {att.type === "image" ? (
+                <Image source={{ uri: att.uri }} style={styles.attachThumb} resizeMode="cover" />
+              ) : (
+                <View style={[styles.attachDocThumb, { backgroundColor: colors.secondary }]}>
+                  <Feather name="file-text" size={20} color={colors.mutedForeground} />
+                </View>
+              )}
+              <Pressable
+                onPress={() => removeAttachment(idx)}
+                style={[styles.attachRemoveBtn, { backgroundColor: colors.foreground }]}
+              >
+                <Feather name="x" size={10} color={colors.background} />
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Recording indicator */}
       {isRecording && (
         <View style={[styles.recordingBar, { backgroundColor: colors.accent }]}>
@@ -111,12 +197,7 @@ export function ChatInput({
       {/* Character counter */}
       {charCount > 0 && !isGenerating && (
         <View style={styles.counterRow}>
-          <Text
-            style={[
-              styles.counter,
-              { color: atLimit ? colors.destructive : nearLimit ? colors.warning : colors.mutedForeground },
-            ]}
-          >
+          <Text style={[styles.counter, { color: atLimit ? colors.destructive : nearLimit ? colors.warning : colors.mutedForeground }]}>
             {charCount} / {MAX_CHARS}
           </Text>
         </View>
@@ -132,6 +213,32 @@ export function ChatInput({
           },
         ]}
       >
+        {/* Attach image from gallery */}
+        <Pressable
+          onPress={() => void handlePickImage()}
+          disabled={isTranscribing || isGenerating}
+          style={({ pressed }) => [
+            styles.sideBtn,
+            { backgroundColor: pressed ? colors.muted : "transparent", opacity: isGenerating ? 0.4 : 1 },
+          ]}
+        >
+          <Feather name="image" size={17} color={colors.mutedForeground} />
+        </Pressable>
+
+        {/* Camera — native only */}
+        {Platform.OS !== "web" && (
+          <Pressable
+            onPress={() => void handlePickCamera()}
+            disabled={isTranscribing || isGenerating}
+            style={({ pressed }) => [
+              styles.sideBtn,
+              { backgroundColor: pressed ? colors.muted : "transparent", opacity: isGenerating ? 0.4 : 1 },
+            ]}
+          >
+            <Feather name="camera" size={17} color={colors.mutedForeground} />
+          </Pressable>
+        )}
+
         {/* Favourites bookmark button */}
         {onOpenFavourites && (
           <Pressable
@@ -182,7 +289,7 @@ export function ChatInput({
         />
 
         {/* Save to favourites star — shows when typing */}
-        {canSend && onSaveFavourite && (
+        {canSend && onSaveFavourite && text.trim().length > 0 && (
           <Pressable
             onPress={handleSaveFav}
             style={({ pressed }) => [
@@ -231,8 +338,18 @@ export function ChatInput({
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: 12, paddingTop: 10, paddingBottom: 12,
+    paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  attachPreviewBar: { maxHeight: 90, marginBottom: 8 },
+  attachPreviewContent: { paddingHorizontal: 4, gap: 8, alignItems: "center" },
+  attachThumbWrap: { position: "relative" },
+  attachThumb: { width: 72, height: 72, borderRadius: 10 },
+  attachDocThumb: { width: 72, height: 72, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  attachRemoveBtn: {
+    position: "absolute", top: -6, right: -6,
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: "center", justifyContent: "center",
   },
   recordingBar: {
     flexDirection: "row", alignItems: "center", gap: 8,
