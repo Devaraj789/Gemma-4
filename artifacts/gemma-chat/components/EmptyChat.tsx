@@ -227,7 +227,7 @@ export function EmptyChat({ onPickPrompt, onSetPersona, hasModel, modelName }: P
           <View style={styles.quickPillsWrap}>
             {[
               { icon: "zap" as const, label: "Summarize text", prompt: "Please summarize the following text for me: " },
-              { icon: "globe" as const, label: "Translate", prompt: "Translate the following to English: " },
+              { icon: "translate" as const, label: "Translate", prompt: "Translate the following to English: " },
               { icon: "list" as const, label: "Make a list", prompt: "Give me a numbered list of " },
               { icon: "help-circle" as const, label: "Explain simply", prompt: "Explain this in simple terms like I'm 10 years old: " },
               { icon: "check-square" as const, label: "Review my work", prompt: "Please review and improve the following: " },

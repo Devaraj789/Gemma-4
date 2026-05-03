@@ -27,12 +27,6 @@ export type Attachment = {
   mimeType?: string;
 };
 
-export type ReplyTo = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
 export type Message = {
   id: string;
   role: "user" | "assistant" | "system";
@@ -40,9 +34,6 @@ export type Message = {
   createdAt: number;
   stats?: MessageStats;
   attachments?: Attachment[];
-  replyTo?: ReplyTo;
-  reactions?: string[];
-  pinned?: boolean;
 };
 
 export type Conversation = {
@@ -53,7 +44,6 @@ export type Conversation = {
   updatedAt: number;
   modelId?: string;
   pinned?: boolean;
-  tags?: string[];
 };
 
 type ChatContextValue = {
@@ -67,7 +57,7 @@ type ChatContextValue = {
   pinConversation: (id: string) => void;
   unpinConversation: (id: string) => void;
   clearAll: () => void;
-  sendMessage: (text: string, modelId: string | null, attachments?: Attachment[], replyTo?: ReplyTo) => Promise<void>;
+  sendMessage: (text: string, modelId: string | null, attachments?: Attachment[]) => Promise<void>;
   stopGeneration: () => void;
   isGenerating: boolean;
   generatingStats: MessageStats | null;
@@ -75,10 +65,6 @@ type ChatContextValue = {
   exportConversations: () => Promise<string>;
   exportConversation: (id: string) => Promise<string>;
   deleteMessage: (convId: string, msgId: string) => void;
-  toggleReaction: (convId: string, msgId: string, emoji: string) => void;
-  pinMessage: (convId: string, msgId: string) => void;
-  unpinMessage: (convId: string, msgId: string) => void;
-  tagConversation: (id: string, tags: string[]) => void;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -203,53 +189,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const toggleReaction = useCallback((convId: string, msgId: string, emoji: string) => {
-    setConversations((prev) => {
-      const next = prev.map((c) => {
-        if (c.id !== convId) return c;
-        const msgs = c.messages.map((m) => {
-          if (m.id !== msgId) return m;
-          const reactions = m.reactions ?? [];
-          const idx = reactions.indexOf(emoji);
-          return { ...m, reactions: idx >= 0 ? reactions.filter((_, i) => i !== idx) : [...reactions, emoji] };
-        });
-        return { ...c, messages: msgs };
-      });
-      void saveJSON(StorageKeys.CONVERSATIONS, next);
-      return next;
-    });
-  }, []);
-
-  const pinMessage = useCallback((convId: string, msgId: string) => {
-    setConversations((prev) => {
-      const next = prev.map((c) => {
-        if (c.id !== convId) return c;
-        return { ...c, messages: c.messages.map((m) => m.id === msgId ? { ...m, pinned: true } : m) };
-      });
-      void saveJSON(StorageKeys.CONVERSATIONS, next);
-      return next;
-    });
-  }, []);
-
-  const unpinMessage = useCallback((convId: string, msgId: string) => {
-    setConversations((prev) => {
-      const next = prev.map((c) => {
-        if (c.id !== convId) return c;
-        return { ...c, messages: c.messages.map((m) => m.id === msgId ? { ...m, pinned: false } : m) };
-      });
-      void saveJSON(StorageKeys.CONVERSATIONS, next);
-      return next;
-    });
-  }, []);
-
-  const tagConversation = useCallback((id: string, tags: string[]) => {
-    setConversations((prev) => {
-      const next = prev.map((c) => c.id === id ? { ...c, tags } : c);
-      void saveJSON(StorageKeys.CONVERSATIONS, next);
-      return next;
-    });
-  }, []);
-
   const exportConversations = useCallback(async (): Promise<string> => {
     const lines: string[] = [];
     lines.push("# Gemma Offline Chat — Exported Conversations");
@@ -289,7 +228,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [conversations]);
 
   const sendMessage = useCallback(
-    async (text: string, modelId: string | null, attachments?: Attachment[], replyTo?: ReplyTo) => {
+    async (text: string, modelId: string | null, attachments?: Attachment[]) => {
       const trimmed = text.trim();
       if (!trimmed && (!attachments || attachments.length === 0)) return;
 
@@ -302,7 +241,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         content: trimmed || (attachments?.length ? `[${attachments.length} image${attachments.length > 1 ? "s" : ""} attached]` : ""),
         createdAt: Date.now(),
         attachments,
-        replyTo,
       };
       const placeholder: Message = { id: uuid(), role: "assistant", content: "", createdAt: Date.now() };
 
@@ -393,7 +331,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         pinConversation, unpinConversation, clearAll,
         sendMessage, stopGeneration, isGenerating, generatingStats,
         ready, exportConversations, exportConversation, deleteMessage,
-        toggleReaction, pinMessage, unpinMessage, tagConversation,
       }}
     >
       {children}

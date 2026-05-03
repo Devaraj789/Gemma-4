@@ -40,11 +40,12 @@
           "origin": "https://replit.com/"
         }
       ],
+      "expo-font",
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": false
+      "reactCompiler": true
     },
     "extra": {
       "eas": {

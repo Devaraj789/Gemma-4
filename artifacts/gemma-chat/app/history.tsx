@@ -7,7 +7,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,8 +16,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useChat, type Conversation } from "@/context/ChatContext";
 import { useColors } from "@/hooks/useColors";
-
-const PREDEFINED_TAGS = ["Work", "Study", "Code", "Personal", "Ideas", "Travel", "Recipes", "Health"];
 
 function timeAgo(ts: number): string {
   const seconds = Math.floor((Date.now() - ts) / 1000);
@@ -70,37 +67,14 @@ export default function HistoryScreen() {
     conversations, activeId, setActiveId,
     deleteConversation, newConversation,
     pinConversation, unpinConversation, renameConversation,
-    tagConversation,
   } = useChat();
 
   const [query, setQuery] = useState("");
   const [renameTarget, setRenameTarget] = useState<Conversation | null>(null);
   const [renameText, setRenameText] = useState("");
-  const [tagTarget, setTagTarget] = useState<Conversation | null>(null);
-  const [tagDraft, setTagDraft] = useState<string[]>([]);
-  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
 
   const handleSelect = (id: string) => { setActiveId(id); router.back(); };
   const handleNew = () => { newConversation(); router.back(); };
-
-  const openTagModal = (conv: Conversation) => {
-    setTagTarget(conv);
-    setTagDraft(conv.tags ?? []);
-  };
-  const toggleTagDraft = (tag: string) => {
-    setTagDraft((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
-  };
-  const confirmTags = () => {
-    if (tagTarget) tagConversation(tagTarget.id, tagDraft);
-    setTagTarget(null);
-    setTagDraft([]);
-  };
-
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of conversations) for (const t of c.tags ?? []) set.add(t);
-    return [...set];
-  }, [conversations]);
 
   const handleDelete = (conv: Conversation) => {
     if (Platform.OS === "web") {
@@ -140,21 +114,19 @@ export default function HistoryScreen() {
   }, [conversations]);
 
   const filtered = useMemo(() => {
-    let result = sorted;
-    if (activeTagFilter) result = result.filter((c) => c.tags?.includes(activeTagFilter));
     const q = query.trim().toLowerCase();
-    if (!q) return result;
-    return result.filter(
+    if (!q) return sorted;
+    return sorted.filter(
       (c) =>
         c.title.toLowerCase().includes(q) ||
         c.messages.some((m) => m.content.toLowerCase().includes(q)),
     );
-  }, [sorted, query, activeTagFilter]);
+  }, [sorted, query]);
 
   const grouped = useMemo(() => {
-    if (query.trim() || activeTagFilter) return [{ label: activeTagFilter ? `#${activeTagFilter}` : "Results", data: filtered }];
+    if (query.trim()) return [{ label: "Results", data: filtered }];
     return groupByDate(sorted);
-  }, [sorted, filtered, query, activeTagFilter]);
+  }, [sorted, filtered, query]);
 
   const totalChats = conversations.length;
   const pinnedCount = conversations.filter((c) => c.pinned).length;
@@ -176,53 +148,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Tag modal */}
-      <Modal
-        visible={!!tagTarget}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTagTarget(null)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setTagTarget(null)}>
-          <Pressable style={[styles.renameModal, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.renameTitle, { color: colors.foreground }]}>Add tags</Text>
-            <View style={styles.tagGrid}>
-              {PREDEFINED_TAGS.map((tag) => {
-                const sel = tagDraft.includes(tag);
-                return (
-                  <Pressable
-                    key={tag}
-                    onPress={() => toggleTagDraft(tag)}
-                    style={[
-                      styles.tagChipBtn,
-                      { backgroundColor: sel ? colors.primary : colors.secondary, borderColor: sel ? colors.primary : colors.border },
-                    ]}
-                  >
-                    <Text style={[styles.tagChipBtnText, { color: sel ? colors.primaryForeground : colors.foreground }]}>
-                      {tag}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.renameActions}>
-              <Pressable
-                onPress={() => setTagTarget(null)}
-                style={[styles.renameBtn, { backgroundColor: colors.secondary }]}
-              >
-                <Text style={[styles.renameBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmTags}
-                style={[styles.renameBtn, { backgroundColor: colors.primary, flex: 1 }]}
-              >
-                <Text style={[styles.renameBtnText, { color: colors.primaryForeground }]}>Save</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
       {/* Rename modal */}
       <Modal
         visible={!!renameTarget}
@@ -341,42 +266,6 @@ export default function HistoryScreen() {
         </View>
       )}
 
-      {/* Tag filter chips */}
-      {allTags.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.tagFilterBar, { borderBottomColor: colors.border }]}
-          contentContainerStyle={styles.tagFilterContent}
-        >
-          <Pressable
-            onPress={() => setActiveTagFilter(null)}
-            style={[
-              styles.tagFilterChip,
-              { backgroundColor: !activeTagFilter ? colors.primary : colors.secondary, borderColor: !activeTagFilter ? colors.primary : colors.border },
-            ]}
-          >
-            <Text style={[styles.tagFilterText, { color: !activeTagFilter ? colors.primaryForeground : colors.mutedForeground }]}>
-              All
-            </Text>
-          </Pressable>
-          {allTags.map((tag) => (
-            <Pressable
-              key={tag}
-              onPress={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
-              style={[
-                styles.tagFilterChip,
-                { backgroundColor: activeTagFilter === tag ? colors.primary : colors.secondary, borderColor: activeTagFilter === tag ? colors.primary : colors.border },
-              ]}
-            >
-              <Text style={[styles.tagFilterText, { color: activeTagFilter === tag ? colors.primaryForeground : colors.foreground }]}>
-                #{tag}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
-
       {flatData.length === 0 ? (
         <View style={styles.empty}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.accent, borderColor: colors.border }]}>
@@ -486,11 +375,6 @@ export default function HistoryScreen() {
                     {conv.pinned && (
                       <Feather name="bookmark" size={11} color={colors.primary} />
                     )}
-                    {(conv.tags ?? []).slice(0, 2).map((tag) => (
-                      <View key={tag} style={[styles.inlineTagChip, { backgroundColor: colors.primary + "18" }]}>
-                        <Text style={[styles.inlineTagText, { color: colors.primary }]}>#{tag}</Text>
-                      </View>
-                    ))}
                   </View>
                 </View>
 
@@ -501,13 +385,6 @@ export default function HistoryScreen() {
                     style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
                   >
                     <Feather name="edit-2" size={15} color={colors.mutedForeground} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => openTagModal(conv)}
-                    hitSlop={8}
-                    style={({ pressed }) => [styles.actionBtn, { opacity: pressed ? 0.6 : 1 }]}
-                  >
-                    <Feather name="tag" size={15} color={(conv.tags?.length ?? 0) > 0 ? colors.primary : colors.mutedForeground} />
                   </Pressable>
                   <Pressable
                     onPress={() => handlePinToggle(conv)}
@@ -651,13 +528,4 @@ const styles = StyleSheet.create({
   renameActions: { flexDirection: "row", gap: 10 },
   renameBtn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   renameBtnText: { fontSize: 14.5, fontFamily: "Inter_600SemiBold" },
-  tagFilterBar: { borderBottomWidth: StyleSheet.hairlineWidth, maxHeight: 48 },
-  tagFilterContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: "center" },
-  tagFilterChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1 },
-  tagFilterText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
-  tagGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tagChipBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
-  tagChipBtnText: { fontSize: 13.5, fontFamily: "Inter_500Medium" },
-  inlineTagChip: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  inlineTagText: { fontSize: 10.5, fontFamily: "Inter_600SemiBold" },
 });

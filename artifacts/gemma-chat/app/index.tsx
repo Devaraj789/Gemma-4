@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,29 +13,23 @@ import {
   TextInput,
   View,
 } from "react-native";
-// FIXED: Removed react-native-keyboard-controller import
-// Using React Native built-in KeyboardAvoidingView instead
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatHeader } from "@/components/ChatHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { EmptyChat } from "@/components/EmptyChat";
 import { FavouritePromptsSheet } from "@/components/FavouritePromptsSheet";
-import { FollowUpChips } from "@/components/FollowUpChips";
-import { MessageBubble } from "@/components/MessageBubble";
-import { PinnedMessagesSheet } from "@/components/PinnedMessagesSheet";
 import { PromptLibrarySheet } from "@/components/PromptLibrarySheet";
+import { MessageBubble } from "@/components/MessageBubble";
 import { QuickReplies } from "@/components/QuickReplies";
-import { ReplyPreviewBar } from "@/components/ReplyPreviewBar";
-import { TypingIndicator } from "@/components/TypingIndicator";
 import { useChat } from "@/context/ChatContext";
 import { useModels } from "@/context/ModelContext";
 import { useSettings } from "@/context/SettingsContext";
+
 import { useTheme } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
 import { addFavourite } from "@/lib/favouritePrompts";
-import { getThemeBg } from "@/constants/chatThemes";
-import type { Attachment, Message, ReplyTo } from "@/context/ChatContext";
 
 export default function ChatScreen() {
   const colors = useColors();
@@ -50,9 +43,6 @@ export default function ChatScreen() {
     setActiveId,
     exportConversation,
     deleteMessage,
-    toggleReaction,
-    pinMessage,
-    unpinMessage,
   } = useChat();
   const { activeModel } = useModels();
   const { settings, updateSettings } = useSettings();
@@ -62,77 +52,45 @@ export default function ChatScreen() {
   const [favSheetOpen, setFavSheetOpen] = useState(false);
   const [favSavedTick, setFavSavedTick] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+
+  // Feature 6: Message search
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pinnedSheetOpen, setPinnedSheetOpen] = useState(false);
-
-  // ── Reply state ──────────────────────────────────────────────────────────────
-  const [replyTo, setReplyTo] = useState<ReplyTo | null>(null);
 
   useEffect(() => {
-    if (params.prompt) { setPrefill(params.prompt); router.setParams({ prompt: undefined }); }
+    if (params.prompt) {
+      setPrefill(params.prompt);
+      router.setParams({ prompt: undefined });
+    }
   }, [params.prompt]);
 
-  useEffect(() => { setSearchVisible(false); setSearchQuery(""); setReplyTo(null); }, [active?.id]);
+  // Close search when conversation changes
+  useEffect(() => {
+    setSearchVisible(false);
+    setSearchQuery("");
+  }, [active?.id]);
 
   const messages = useMemo(() => {
     if (!active) return [];
     return [...active.messages].reverse();
   }, [active]);
 
+  // Feature 6: Filtered messages for search
   const filteredMessages = useMemo(() => {
     if (!searchQuery.trim()) return messages;
     const q = searchQuery.toLowerCase();
     return messages.filter((m) => m.content.toLowerCase().includes(q));
   }, [messages, searchQuery]);
 
-  const pinnedMessages = useMemo(() => {
-    if (!active) return [];
-    return active.messages.filter((m) => m.pinned);
-  }, [active]);
-
   const hasMessages = messages.length > 0;
-  const lastMsg = active?.messages[active.messages.length - 1];
-  const lastMessageId = lastMsg?.id;
-  const showTypingDots = isGenerating && lastMsg?.role === "assistant" && lastMsg.content.length === 0;
-
-  const lastAssistantContent = useMemo(() => {
-    if (!active) return null;
-    const found = [...active.messages].reverse().find((m) => m.role === "assistant" && m.content.length > 0);
-    return found?.content ?? null;
-  }, [active]);
-
-  // Chat theme background
-  const chatBg = getThemeBg(settings.chatTheme ?? "default", isDark);
+  const lastMessageId = active?.messages[active.messages.length - 1]?.id;
 
   const handleSend = useCallback(
-    (text: string, attachments?: Attachment[]) => {
-      void sendMessage(text, activeModel?.id ?? null, attachments, replyTo ?? undefined);
-      setReplyTo(null);
+    (text: string, attachments?: import("@/context/ChatContext").Attachment[]) => {
+      void sendMessage(text, activeModel?.id ?? null, attachments);
     },
-    [sendMessage, activeModel, replyTo],
+    [sendMessage, activeModel],
   );
-
-  const handleReply = useCallback((msg: Message) => {
-    setReplyTo({ id: msg.id, role: msg.role as "user" | "assistant", content: msg.content });
-  }, []);
-
-  const handleReact = useCallback((msgId: string, emoji: string) => {
-    if (active) toggleReaction(active.id, msgId, emoji);
-  }, [active, toggleReaction]);
-
-  const handlePin = useCallback((msgId: string) => {
-    if (active) pinMessage(active.id, msgId);
-  }, [active, pinMessage]);
-
-  const handleUnpin = useCallback((msgId: string) => {
-    if (active) unpinMessage(active.id, msgId);
-  }, [active, unpinMessage]);
-
-  const handleScrollToMessage = useCallback((msgId: string) => {
-    const idx = messages.findIndex((m) => m.id === msgId);
-    if (idx >= 0) listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
-  }, [messages]);
 
   const handleNewChat = useCallback(() => { setActiveId(null); }, [setActiveId]);
 
@@ -141,20 +99,18 @@ export default function ChatScreen() {
     setFavSavedTick((p) => !p);
   }, []);
 
+  // Feature 7: Delete individual message
   const handleDeleteMessage = useCallback((msgId: string) => {
     if (active) deleteMessage(active.id, msgId);
   }, [active, deleteMessage]);
 
+  // Feature 5: Chat summary
   const handleSummarize = useCallback(() => {
     if (!hasMessages || isGenerating) return;
-    handleSend("Please summarize this conversation in 3-5 concise bullet points.");
+    handleSend("Please summarize this conversation in 3-5 concise bullet points, highlighting the main topics discussed.");
   }, [hasMessages, isGenerating, handleSend]);
 
-  const handleContinue = useCallback(() => {
-    if (!hasMessages || isGenerating) return;
-    handleSend("Please continue from where you left off.");
-  }, [hasMessages, isGenerating, handleSend]);
-
+  // Feature 9: Per-chat export
   const handleExportChat = useCallback(async () => {
     if (!active) return;
     try {
@@ -163,7 +119,8 @@ export default function ChatScreen() {
         const blob = new Blob([text], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url; a.download = `${active.title}.txt`; a.click(); return;
+        a.href = url; a.download = `${active.title}.txt`; a.click();
+        return;
       }
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) { Alert.alert("Sharing not available"); return; }
@@ -175,33 +132,44 @@ export default function ChatScreen() {
     }
   }, [active, exportConversation]);
 
+  // Feature 6: Toggle search
   const handleToggleSearch = useCallback(() => {
-    setSearchVisible((p) => { if (p) setSearchQuery(""); return !p; });
+    setSearchVisible((p) => {
+      if (p) setSearchQuery("");
+      return !p;
+    });
   }, []);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ChatHeader
+        modelName={activeModel?.shortName ?? null}
+        onOpenHistory={() => router.push("/history")}
+        onOpenModels={() => router.push("/models")}
+        onOpenSettings={() => router.push("/settings")}
         onNewChat={handleNewChat}
+        onOpenTools={() => setToolsOpen(true)}
         onToggleTheme={toggleTheme}
         isDark={isDark}
-        onToggleSearch={handleToggleSearch}
-        searchActive={searchVisible}
-        onExport={handleExportChat}
+        onSearch={hasMessages ? handleToggleSearch : undefined}
+        onExportChat={hasMessages ? () => void handleExportChat() : undefined}
         hasMessages={hasMessages}
-        onOpenTools={() => setToolsOpen(true)}
-        toolsOpen={toolsOpen}
+        searchActive={searchVisible}
       />
 
+      {/* Feature 6: Search bar */}
       {searchVisible && (
-        <View style={[styles.searchBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <View style={[styles.searchInner, { backgroundColor: colors.secondary }]}>
             <Feather name="search" size={15} color={colors.mutedForeground} />
             <TextInput
-              value={searchQuery} onChangeText={setSearchQuery}
-              placeholder="Search messages…" placeholderTextColor={colors.mutedForeground}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search messages…"
+              placeholderTextColor={colors.mutedForeground}
               style={[styles.searchInput, { color: colors.foreground }]}
-              autoFocus returnKeyType="search"
+              autoFocus
+              returnKeyType="search"
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
@@ -217,28 +185,7 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {/* Pinned messages banner */}
-      {pinnedMessages.length > 0 && !searchVisible && (
-        <Pressable
-          onPress={() => setPinnedSheetOpen(true)}
-          style={[styles.pinnedBanner, { backgroundColor: colors.accent, borderBottomColor: colors.border }]}
-        >
-          <Feather name="bookmark" size={13} color={colors.primary} />
-          <Text style={[styles.pinnedBannerText, { color: colors.primary }]}>
-            {pinnedMessages.length} pinned {pinnedMessages.length === 1 ? "message" : "messages"}
-          </Text>
-          <Feather name="chevron-right" size={13} color={colors.primary} />
-        </Pressable>
-      )}
-
-      {/* FIXED: Using React Native built-in KeyboardAvoidingView
-          behavior="padding" → Android best practice
-          behavior="padding" on iOS too — works correctly without keyboard-controller */}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
         {!active || active.messages.length === 0 ? (
           <View style={styles.emptyWrap}>
             <EmptyChat
@@ -256,26 +203,18 @@ export default function ChatScreen() {
             inverted
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
-            style={chatBg ? { backgroundColor: chatBg } : undefined}
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 12 }}
-            onScrollToIndexFailed={() => {}}
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
-                showCursor={isGenerating && item.id === lastMessageId && item.role === "assistant" && item.content.length > 0}
+                showCursor={isGenerating && item.id === lastMessageId && item.role === "assistant"}
                 fontSize={settings.fontSize}
                 onDelete={(msg) => handleDeleteMessage(msg.id)}
-                onRetry={(msg) => { if (msg.role === "user") handleSend(msg.content, msg.attachments); }}
-                onReply={handleReply}
-                onReact={handleReact}
-                onPin={handlePin}
-                onUnpin={handleUnpin}
+                onRetry={(msg) => { if (msg.role === "user") handleSend(msg.content); }}
                 convId={active?.id ?? ""}
                 convTitle={active?.title ?? ""}
-                searchHighlight={searchQuery.trim() || undefined}
               />
             )}
-            ListHeaderComponent={showTypingDots ? <TypingIndicator /> : null}
             scrollEnabled={messages.length > 0}
             ListEmptyComponent={
               searchQuery.trim().length > 0 ? (
@@ -288,31 +227,25 @@ export default function ChatScreen() {
           />
         )}
 
-        {/* Quick replies + toolbar */}
+        {/* Quick reply chips + Feature 5: Summarize button */}
         {hasMessages && !isGenerating && (
           <View style={[styles.bottomBar, { borderTopColor: colors.border }]}>
-            <FollowUpChips
-              lastAssistantMessage={lastAssistantContent}
-              onSelect={(t) => { setPrefill(null); handleSend(t); }}
-              visible={!searchVisible}
-            />
             <QuickReplies onSelect={(text) => { setPrefill(null); handleSend(text); }} />
             <View style={[styles.chatToolbar, { borderTopColor: colors.border }]}>
-              <Pressable onPress={handleSummarize} style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}>
+              {/* Feature 5: Summarize */}
+              <Pressable
+                onPress={handleSummarize}
+                style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}
+              >
                 <Feather name="list" size={13} color={colors.primary} />
                 <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Summarize</Text>
               </Pressable>
-              <Pressable onPress={handleContinue} style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}>
-                <Feather name="arrow-right" size={13} color={colors.primary} />
-                <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Continue</Text>
-              </Pressable>
-              {pinnedMessages.length > 0 && (
-                <Pressable onPress={() => setPinnedSheetOpen(true)} style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.accent, opacity: pressed ? 0.75 : 1 }]}>
-                  <Feather name="bookmark" size={13} color={colors.primary} />
-                  <Text style={[styles.toolbarBtnText, { color: colors.primary }]}>Pinned ({pinnedMessages.length})</Text>
-                </Pressable>
-              )}
-              <Pressable onPress={() => router.push("/saved")} style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}>
+
+              {/* Saved messages shortcut */}
+              <Pressable
+                onPress={() => router.push("/saved")}
+                style={({ pressed }) => [styles.toolbarBtn, { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 }]}
+              >
                 <Feather name="bookmark" size={13} color={colors.mutedForeground} />
                 <Text style={[styles.toolbarBtnText, { color: colors.mutedForeground }]}>Saved</Text>
               </Pressable>
@@ -320,42 +253,33 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* Reply preview bar */}
-        {replyTo && (
-          <ReplyPreviewBar replyTo={replyTo} onCancel={() => setReplyTo(null)} />
-        )}
-
         <View style={{ paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 12) : insets.bottom }}>
           <ChatInput
-            onSend={(text, attachments) => { setPrefill(null); handleSend(text, attachments); }}
+            onSend={(text) => { setPrefill(null); handleSend(text); }}
             onStop={stopGeneration}
             isGenerating={isGenerating}
             disabled={!activeModel}
             hapticsEnabled={settings.haptics}
-            placeholder={activeModel ? (replyTo ? "Reply to message…" : "Message Gemma…") : "Download a model first"}
+            placeholder={activeModel ? "Message Gemma…" : "Download a model first to start chatting"}
             prefillText={prefill}
             onSaveFavourite={handleSaveFavourite}
             onOpenFavourites={() => setFavSheetOpen(true)}
-            convId={active?.id}
           />
         </View>
       </KeyboardAvoidingView>
 
+      {/* Favourite Prompts Sheet */}
       <FavouritePromptsSheet
         visible={favSheetOpen}
         onClose={() => setFavSheetOpen(false)}
         onSelect={(text) => { setPrefill(text); }}
         onSaved={favSavedTick}
       />
-      <PromptLibrarySheet visible={toolsOpen} onClose={() => setToolsOpen(false)} />
 
-      {/* Pinned messages sheet */}
-      <PinnedMessagesSheet
-        visible={pinnedSheetOpen}
-        onClose={() => setPinnedSheetOpen(false)}
-        pinnedMessages={pinnedMessages}
-        onUnpin={(msgId) => handleUnpin(msgId)}
-        onScrollTo={handleScrollToMessage}
+      {/* Prompt / Tools Library Sheet */}
+      <PromptLibrarySheet
+        visible={toolsOpen}
+        onClose={() => setToolsOpen(false)}
       />
     </View>
   );
@@ -367,14 +291,12 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1 },
   searchBar: { borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 },
   searchInner: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  searchInput: { flex: 1, fontSize: 14, padding: 0 },
-  searchCount: { fontSize: 12 },
-  pinnedBanner: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  pinnedBannerText: { flex: 1, fontSize: 13 },
+  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", padding: 0 },
+  searchCount: { fontSize: 12, fontFamily: "Inter_500Medium" },
   bottomBar: { borderTopWidth: StyleSheet.hairlineWidth },
-  chatToolbar: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, flexWrap: "wrap" },
+  chatToolbar: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth },
   toolbarBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  toolbarBtnText: { fontSize: 12.5 },
+  toolbarBtnText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
   noResults: { alignItems: "center", justifyContent: "center", padding: 40, gap: 10 },
-  noResultsText: { fontSize: 14 },
-});code artifacts/gemma-chat/app.json
+  noResultsText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+});

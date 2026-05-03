@@ -3,7 +3,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
-import { CHAT_THEMES } from "@/constants/chatThemes";
 import {
   Alert,
   Linking,
@@ -15,19 +14,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-
-const themeSwatchStyles = StyleSheet.create({
-  swatch: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 4,
-    minWidth: 72,
-  },
-  swatchLabel: { fontSize: 11.5, fontFamily: "Inter_600SemiBold" },
-});
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PromptLibrarySheet } from "@/components/PromptLibrarySheet";
@@ -285,43 +271,6 @@ export default function SettingsScreen() {
                   </Pressable>
                 ))}
               </View>
-            </View>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <View style={{ paddingVertical: 10, paddingHorizontal: 16, gap: 8 }}>
-              <Text style={[styles.rowLabel, { color: colors.foreground }]}>Chat Style</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingRight: 4 }}
-              >
-                {CHAT_THEMES.map((t) => {
-                  const active = (settings.chatTheme ?? "default") === t.id;
-                  return (
-                    <Pressable
-                      key={t.id}
-                      onPress={() => updateSettings({ chatTheme: t.id })}
-                      style={[
-                        themeSwatchStyles.swatch,
-                        {
-                          backgroundColor: colors.secondary,
-                          borderColor: active ? colors.primary : colors.border,
-                          borderWidth: active ? 2 : 1,
-                        },
-                      ]}
-                    >
-                      <Text style={{ fontSize: 22 }}>{t.emoji}</Text>
-                      <Text
-                        style={[
-                          themeSwatchStyles.swatchLabel,
-                          { color: active ? colors.primary : colors.mutedForeground },
-                        ]}
-                      >
-                        {t.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
             </View>
           </View>
         </View>
