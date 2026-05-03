@@ -20,14 +20,8 @@
       }
     },
     "android": {
-      "package": "com.devarajrdx9.gemmachat",
-      "minSdkVersion": 23,
-      "targetSdkVersion": 34,
-      "compileSdkVersion": 34,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -46,12 +40,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "236cb843-b9d8-46f7-986a-9dfb08ad835e"
-      }
-    },
-    "owner": "devarajrdx9"
+    }
   }
 }

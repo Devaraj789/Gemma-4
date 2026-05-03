@@ -21,25 +21,31 @@ import { ThemeProvider } from "@/context/ThemeContext";
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
-const MODAL_OPTIONS = {
-  presentation: "modal" as const,
-  animation: "slide_from_bottom" as const,
-};
-
 function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="models"         options={MODAL_OPTIONS} />
-      <Stack.Screen name="settings"       options={MODAL_OPTIONS} />
-      <Stack.Screen name="history"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="storage"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="stats"          options={MODAL_OPTIONS} />
-      <Stack.Screen name="saved"          options={MODAL_OPTIONS} />
-      <Stack.Screen name="language"       options={MODAL_OPTIONS} />
-      <Stack.Screen name="network-check"  options={MODAL_OPTIONS} />
-      <Stack.Screen name="privacy"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="feedback"       options={MODAL_OPTIONS} />
+      <Stack.Screen
+        name="models"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="history"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
     </Stack>
   );
 }
@@ -53,7 +59,9 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
