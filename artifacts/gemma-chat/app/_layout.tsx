@@ -7,7 +7,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -97,7 +97,14 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const fontsReady = fontsLoaded || !!fontError;
+  // Safety timeout — if fonts hang for any reason, force-dismiss after 3 s.
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const fontsReady = fontsLoaded || !!fontError || timedOut;
 
   return (
     <SafeAreaProvider>
