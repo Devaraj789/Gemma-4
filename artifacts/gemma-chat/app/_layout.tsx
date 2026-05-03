@@ -11,25 +11,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import {
-  Animated,
-  Image,
-  StyleSheet,
-  View,
-  ActivityIndicator,
-} from "react-native";
+import { Image, StyleSheet, View, ActivityIndicator } from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ChatProvider } from "@/context/ChatContext";
 import { ModelProvider } from "@/context/ModelContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-
-// NOTE: We intentionally do NOT call SplashScreen.preventAutoHideAsync().
-// That API caused the installed APK to freeze because the JS bundle takes
-// time to evaluate on device — keeping the native splash open indefinitely.
-// Instead we let the native splash auto-dismiss, then show our own React
-// Native loading screen while custom fonts finish loading. This is 100%
-// reliable across all Android versions and New Architecture.
 
 const queryClient = new QueryClient();
 
@@ -56,36 +43,21 @@ function RootLayoutNav() {
   );
 }
 
-/** Shown while Inter fonts are loading — pure React Native, no native API. */
-function AppLoadingScreen({ visible }: { visible: boolean }) {
-  const opacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!visible) {
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 350,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, opacity]);
-
+/**
+ * Pure React Native loading screen — zero native module dependencies.
+ * Rendered OUTSIDE all providers so it can never be blocked by a
+ * provider hang/crash.
+ */
+function LoadingScreen() {
   return (
-    <Animated.View
-      style={[StyleSheet.absoluteFill, styles.splash, { opacity }]}
-      pointerEvents={visible ? "auto" : "none"}
-    >
+    <View style={styles.loadingRoot}>
       <Image
         source={require("../assets/images/icon.png")}
-        style={styles.splashIcon}
+        style={styles.loadingIcon}
         resizeMode="contain"
       />
-      <ActivityIndicator
-        size="small"
-        color="#3b82f6"
-        style={styles.splashSpinner}
-      />
-    </Animated.View>
+      <ActivityIndicator size="small" color="#3b82f6" style={styles.loadingSpinner} />
+    </View>
   );
 }
 
@@ -97,14 +69,24 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  // Safety timeout — if fonts hang for any reason, force-dismiss after 3 s.
+  // Hard 3-second deadline — if fonts haven't resolved by then, proceed anyway.
   const [timedOut, setTimedOut] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const t = setTimeout(() => setTimedOut(true), 3000);
-    return () => clearTimeout(t);
+    timerRef.current = setTimeout(() => setTimedOut(true), 3000);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   const fontsReady = fontsLoaded || !!fontError || timedOut;
+
+  // ── CRITICAL: return loading screen BEFORE mounting any providers/native ──
+  // This guarantees it renders even if a provider or native module hangs.
+  if (!fontsReady) {
+    return <LoadingScreen />;
+  }
 
   return (
     <SafeAreaProvider>
@@ -116,10 +98,7 @@ export default function RootLayout() {
                 <SettingsProvider>
                   <ModelProvider>
                     <ChatProvider>
-                      {/* Always render nav so the JS tree is ready */}
                       <RootLayoutNav />
-                      {/* Overlay our own loading screen until fonts are done */}
-                      <AppLoadingScreen visible={!fontsReady} />
                     </ChatProvider>
                   </ModelProvider>
                 </SettingsProvider>
@@ -134,17 +113,17 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  splash: {
+  loadingRoot: {
+    flex: 1,
     backgroundColor: "#0a0a0b",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 9999,
   },
-  splashIcon: {
+  loadingIcon: {
     width: 120,
     height: 120,
   },
-  splashSpinner: {
+  loadingSpinner: {
     marginTop: 32,
   },
 });
