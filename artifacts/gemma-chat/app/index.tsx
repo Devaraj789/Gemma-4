@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,7 +14,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+// FIXED: Removed react-native-keyboard-controller import
+// Using React Native built-in KeyboardAvoidingView instead
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatHeader } from "@/components/ChatHeader";
@@ -180,23 +182,19 @@ export default function ChatScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ChatHeader
-        modelName={activeModel?.shortName ?? null}
-        onOpenHistory={() => router.push("/history")}
-        onOpenModels={() => router.push("/models")}
-        onOpenSettings={() => router.push("/settings")}
         onNewChat={handleNewChat}
-        onOpenTools={() => setToolsOpen(true)}
         onToggleTheme={toggleTheme}
         isDark={isDark}
-        onSearch={hasMessages ? handleToggleSearch : undefined}
-        onExportChat={hasMessages ? () => void handleExportChat() : undefined}
-        hasMessages={hasMessages}
+        onToggleSearch={handleToggleSearch}
         searchActive={searchVisible}
+        onExport={handleExportChat}
+        hasMessages={hasMessages}
+        onOpenTools={() => setToolsOpen(true)}
+        toolsOpen={toolsOpen}
       />
 
-      {/* Search bar */}
       {searchVisible && (
-        <View style={[styles.searchBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View style={[styles.searchBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
           <View style={[styles.searchInner, { backgroundColor: colors.secondary }]}>
             <Feather name="search" size={15} color={colors.mutedForeground} />
             <TextInput
@@ -233,7 +231,14 @@ export default function ChatScreen() {
         </Pressable>
       )}
 
-      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={0}>
+      {/* FIXED: Using React Native built-in KeyboardAvoidingView
+          behavior="padding" → Android best practice
+          behavior="padding" on iOS too — works correctly without keyboard-controller */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
         {!active || active.messages.length === 0 ? (
           <View style={styles.emptyWrap}>
             <EmptyChat
@@ -362,14 +367,14 @@ const styles = StyleSheet.create({
   emptyWrap: { flex: 1 },
   searchBar: { borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 8 },
   searchInner: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular", padding: 0 },
-  searchCount: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  searchInput: { flex: 1, fontSize: 14, padding: 0 },
+  searchCount: { fontSize: 12 },
   pinnedBanner: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  pinnedBannerText: { flex: 1, fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  pinnedBannerText: { flex: 1, fontSize: 13 },
   bottomBar: { borderTopWidth: StyleSheet.hairlineWidth },
   chatToolbar: { flexDirection: "row", gap: 8, paddingHorizontal: 12, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, flexWrap: "wrap" },
   toolbarBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  toolbarBtnText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
+  toolbarBtnText: { fontSize: 12.5 },
   noResults: { alignItems: "center", justifyContent: "center", padding: 40, gap: 10 },
-  noResultsText: { fontSize: 14, fontFamily: "Inter_500Medium" },
-});
+  noResultsText: { fontSize: 14 },
+});code artifacts/gemma-chat/app.json

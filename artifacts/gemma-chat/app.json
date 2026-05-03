@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "gemma-chat",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -40,12 +40,11 @@
           "origin": "https://replit.com/"
         }
       ],
-      "expo-font",
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     },
     "extra": {
       "eas": {
