@@ -1,6 +1,7 @@
+import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StyleSheet } from "react-native";
@@ -10,6 +11,14 @@ import { ModelProvider } from "@/context/ModelContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
+// Force-hide splash screen 800ms after JS bundle loads.
+// expo-router v6 calls preventAutoHideAsync() internally — if any provider
+// hangs, the splash never hides. This timer fires on the JS thread
+// independently of React rendering, guaranteeing the splash is dismissed.
+const _splashDismissTimer = setTimeout(() => {
+  SplashScreen.hideAsync().catch(() => {});
+}, 800);
+
 const queryClient = new QueryClient();
 
 const MODAL_OPTIONS = {
@@ -18,6 +27,12 @@ const MODAL_OPTIONS = {
 };
 
 export default function RootLayout() {
+  // Also call hideAsync on first render as belt-and-suspenders
+  useEffect(() => {
+    clearTimeout(_splashDismissTimer);
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
