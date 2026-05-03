@@ -20,6 +20,7 @@ export type Settings = {
   autoDeleteDays: number;
   language: string;
   localDataOnly: boolean;
+  chatTheme: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoDeleteDays: 0,
   language: "English",
   localDataOnly: true,
+  chatTheme: "default",
 };
 
 type SettingsContextValue = {
