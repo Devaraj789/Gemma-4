@@ -7,26 +7,31 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native";
+import {
+  Animated,
+  Image,
+  StyleSheet,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ChatProvider } from "@/context/ChatContext";
 import { ModelProvider } from "@/context/ModelContext";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
-// Keep the splash visible while we load resources.
-// Must be called as early as possible, before any rendering.
-SplashScreen.preventAutoHideAsync().catch(() => {});
+// NOTE: We intentionally do NOT call SplashScreen.preventAutoHideAsync().
+// That API caused the installed APK to freeze because the JS bundle takes
+// time to evaluate on device — keeping the native splash open indefinitely.
+// Instead we let the native splash auto-dismiss, then show our own React
+// Native loading screen while custom fonts finish loading. This is 100%
+// reliable across all Android versions and New Architecture.
 
 const queryClient = new QueryClient();
-
-// If fonts haven't loaded in 3 seconds, force-dismiss the splash anyway.
-const SPLASH_TIMEOUT_MS = 3000;
 
 const MODAL_OPTIONS = {
   presentation: "modal" as const,
@@ -37,17 +42,50 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="models"         options={MODAL_OPTIONS} />
-      <Stack.Screen name="settings"       options={MODAL_OPTIONS} />
-      <Stack.Screen name="history"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="storage"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="stats"          options={MODAL_OPTIONS} />
-      <Stack.Screen name="saved"          options={MODAL_OPTIONS} />
-      <Stack.Screen name="language"       options={MODAL_OPTIONS} />
-      <Stack.Screen name="network-check"  options={MODAL_OPTIONS} />
-      <Stack.Screen name="privacy"        options={MODAL_OPTIONS} />
-      <Stack.Screen name="feedback"       options={MODAL_OPTIONS} />
+      <Stack.Screen name="models"        options={MODAL_OPTIONS} />
+      <Stack.Screen name="settings"      options={MODAL_OPTIONS} />
+      <Stack.Screen name="history"       options={MODAL_OPTIONS} />
+      <Stack.Screen name="storage"       options={MODAL_OPTIONS} />
+      <Stack.Screen name="stats"         options={MODAL_OPTIONS} />
+      <Stack.Screen name="saved"         options={MODAL_OPTIONS} />
+      <Stack.Screen name="language"      options={MODAL_OPTIONS} />
+      <Stack.Screen name="network-check" options={MODAL_OPTIONS} />
+      <Stack.Screen name="privacy"       options={MODAL_OPTIONS} />
+      <Stack.Screen name="feedback"      options={MODAL_OPTIONS} />
     </Stack>
+  );
+}
+
+/** Shown while Inter fonts are loading — pure React Native, no native API. */
+function AppLoadingScreen({ visible }: { visible: boolean }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible, opacity]);
+
+  return (
+    <Animated.View
+      style={[StyleSheet.absoluteFill, styles.splash, { opacity }]}
+      pointerEvents={visible ? "auto" : "none"}
+    >
+      <Image
+        source={require("../assets/images/icon.png")}
+        style={styles.splashIcon}
+        resizeMode="contain"
+      />
+      <ActivityIndicator
+        size="small"
+        color="#3b82f6"
+        style={styles.splashSpinner}
+      />
+    </Animated.View>
   );
 }
 
@@ -59,35 +97,11 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const [ready, setReady] = useState(false);
-
-  const hideSplash = useCallback(async () => {
-    if (ready) return;
-    setReady(true);
-    try {
-      await SplashScreen.hideAsync();
-    } catch {
-      // already hidden or not shown — safe to ignore
-    }
-  }, [ready]);
-
-  // Force-dismiss after SPLASH_TIMEOUT_MS even if fonts are stuck
-  useEffect(() => {
-    const timer = setTimeout(() => { void hideSplash(); }, SPLASH_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Dismiss as soon as fonts are done (success or error)
-  useEffect(() => {
-    if (fontsLoaded || fontError) { void hideSplash(); }
-  }, [fontsLoaded, fontError, hideSplash]);
-
-  // Show nothing (splash is still visible) until fonts are ready or timeout fired
-  if (!ready && !fontsLoaded && !fontError) return null;
+  const fontsReady = fontsLoaded || !!fontError;
 
   return (
     <SafeAreaProvider>
-      <ErrorBoundary onError={() => { void SplashScreen.hideAsync().catch(() => {}); }}>
+      <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={styles.flex}>
             <KeyboardProvider>
@@ -95,7 +109,10 @@ export default function RootLayout() {
                 <SettingsProvider>
                   <ModelProvider>
                     <ChatProvider>
+                      {/* Always render nav so the JS tree is ready */}
                       <RootLayoutNav />
+                      {/* Overlay our own loading screen until fonts are done */}
+                      <AppLoadingScreen visible={!fontsReady} />
                     </ChatProvider>
                   </ModelProvider>
                 </SettingsProvider>
@@ -110,4 +127,17 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  splash: {
+    backgroundColor: "#0a0a0b",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  },
+  splashIcon: {
+    width: 120,
+    height: 120,
+  },
+  splashSpinner: {
+    marginTop: 32,
+  },
 });

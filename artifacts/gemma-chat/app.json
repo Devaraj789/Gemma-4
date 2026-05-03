@@ -8,6 +8,11 @@
     "scheme": "gemma-chat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0b"
+    },
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
@@ -26,12 +31,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/icon.png",
-      "splash": {
-        "image": "./assets/images/icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#0a0a0b"
-      }
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       [
@@ -41,20 +41,7 @@
         }
       ],
       "expo-font",
-      "expo-web-browser",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#0a0a0b",
-          "image": "./assets/images/icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "dark": {
-            "backgroundColor": "#0a0a0b",
-            "image": "./assets/images/icon.png"
-          }
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
