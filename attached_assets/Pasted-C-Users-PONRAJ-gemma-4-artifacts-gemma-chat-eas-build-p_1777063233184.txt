@@ -1,0 +1,30 @@
+C:\Users\PONRAJ\gemma-4\artifacts\gemma-chat>eas build --profile development --platform android
+
+You want to build a development client build for platforms: Android
+However, we detected that you don't have expo-dev-client installed for your project.
+√ Do you want EAS CLI to install expo-dev-client for you? ... yes
+
+Running expo install expo-dev-client
+
+[expo-cli] › Installing 1 SDK 54.0.0 compatible native module using pnpm
+[expo-cli] > pnpm add expo-dev-client@~6.0.20
+[expo-cli] ../..                                    | Progress: resolved 1, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 2, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 3, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 4, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 7, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 10, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 12, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 16, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 17, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 18, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 20, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 21, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 23, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 24, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 25, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 26, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 29, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 30, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 31, reused 0, downloaded 0, added 0
+[expo-cli] ../..                                    | Progress: resolved 32, reused 0, downloaded 0, added 0
