@@ -16,7 +16,6 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       setVoiceState("requesting");
       setErrorMsg(null);
 
-      // Permission check
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
         setErrorMsg("Microphone permission denied");
@@ -50,10 +49,9 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       const uri = recording.getURI();
       recordingRef.current = null;
 
-      if (!uri) throw new Error("No audio file");
+      if (!uri) throw new Error("No audio file recorded");
 
-      // Whisper transcribe
-      const ctx = await loadWhisper() as { transcribe: (uri: string, opts: unknown) => { promise: Promise<{ result?: string }> } };
+      const ctx = await loadWhisper();
       const { promise } = ctx.transcribe(uri, {
         language: "auto",
         maxLen: 1,
@@ -69,7 +67,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Transcription failed");
       setVoiceState("error");
-      setTimeout(() => setVoiceState("idle"), 2000);
+      setTimeout(() => {
+        setVoiceState("idle");
+        setErrorMsg(null);
+      }, 3000);
     }
   }, [onTranscript]);
 
