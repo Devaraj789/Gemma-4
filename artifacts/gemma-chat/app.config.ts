@@ -1,0 +1,58 @@
+import type { ExpoConfig, ConfigContext } from "expo/config";
+
+export default ({ config }: ConfigContext): ExpoConfig => {
+  const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
+  const origin = devDomain ? `https://${devDomain}` : "https://replit.com/";
+
+  return {
+    ...config,
+    name: "Gemma Offline Chat",
+    slug: "gemma-chat",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/images/icon.png",
+    scheme: "gemma-chat",
+    userInterfaceStyle: "automatic",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/images/icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#0a0a0b",
+    },
+    ios: {
+      supportsTablet: false,
+      infoPlist: {
+        NSMicrophoneUsageDescription: "Used for voice input to chat with Gemma AI",
+      },
+    },
+    android: {
+      package: "com.devarajrdx9.gemmachat",
+      permissions: [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+      ],
+    },
+    web: {
+      favicon: "./assets/images/icon.png",
+    },
+    plugins: [
+      [
+        "expo-router",
+        { origin },
+      ],
+      "expo-font",
+      "expo-web-browser",
+    ],
+    experiments: {
+      typedRoutes: true,
+      reactCompiler: true,
+    },
+    extra: {
+      eas: {
+        projectId: "236cb843-b9d8-46f7-986a-9dfb08ad835e",
+      },
+    },
+    owner: "devarajrdx9",
+  };
+};
