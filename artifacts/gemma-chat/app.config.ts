@@ -2,7 +2,9 @@ import type { ExpoConfig, ConfigContext } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const devDomain = process.env.EXPO_PUBLIC_DOMAIN;
-  const origin = devDomain ? `https://${devDomain}` : "https://replit.com/";
+  const originPort = process.env.EXPO_PUBLIC_ORIGIN_PORT;
+  const portSuffix = originPort ? `:${originPort}` : "";
+  const origin = devDomain ? `https://${devDomain}${portSuffix}` : "https://replit.com/";
 
   return {
     ...config,
