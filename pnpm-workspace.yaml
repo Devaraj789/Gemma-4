@@ -70,8 +70,10 @@ autoInstallPeers: false
 onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
+  - llama.rn
   - msw
   - unrs-resolver
+  - whisper.rn
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms

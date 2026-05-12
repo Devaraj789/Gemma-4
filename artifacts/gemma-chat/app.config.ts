@@ -21,20 +21,26 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       supportsTablet: false,
+      bundleIdentifier: "com.devarajrdx9.gemmachat",
+      deploymentTarget: "16.0",
       infoPlist: {
-        NSMicrophoneUsageDescription: "Used for voice input to chat with Gemma AI",
+        NSMicrophoneUsageDescription:
+          "Used for voice input to chat with Gemma AI",
+        NSDocumentsFolderUsageDescription:
+          "Used to store downloaded GGUF model files",
       },
     },
     android: {
       package: "com.devarajrdx9.gemmachat",
+      minSdkVersion: 26,
+      compileSdkVersion: 35,
+      targetSdkVersion: 35,
       permissions: [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
       ],
-    },
-    web: {
-      favicon: "./assets/images/icon.png",
     },
     plugins: [
       [
@@ -43,6 +49,30 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          android: {
+            minSdkVersion: 26,
+            compileSdkVersion: 35,
+            targetSdkVersion: 35,
+            buildToolsVersion: "35.0.0",
+            kotlinVersion: "2.0.21",
+            packagingOptions: {
+              pickFirst: [
+                "**/libllama.so",
+                "**/libwhisper.so",
+                "**/libc++_shared.so",
+                "**/libgomp-52d2c847.so.1",
+              ],
+            },
+            enableDangerousExperimentalLeanBuilds: false,
+          },
+          ios: {
+            deploymentTarget: "16.0",
+          },
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,
