@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Llama from "@/lib/llama";
 import type { Message } from "@/context/ChatContext";
 import type { Settings } from "@/context/SettingsContext";
@@ -17,6 +18,12 @@ export type GenerateParams = {
   signal?: AbortSignal;
 };
 
+const WEB_PREVIEW_RESPONSE =
+  "This is a web preview — live AI inference runs on Android and iOS only. " +
+  "To chat with Gemma offline: build the app via EAS, install it on your device, " +
+  "open the Models tab, download a GGUF model over Wi-Fi, and tap 'Use this model'. " +
+  "All responses then run 100% on-device with no internet needed.";
+
 const FALLBACK_RESPONSES: string[] = [
   "No model is loaded yet. Open the Models tab, download a Gemma model, then tap Use this model to load it into memory.",
   "I am ready, but a model has not been activated. Tap the model name at the top of this screen, choose a downloaded model, and try again.",
@@ -28,6 +35,20 @@ export async function generate({
   onToken,
   signal,
 }: GenerateParams): Promise<string> {
+  if (Platform.OS === "web") {
+    const words = WEB_PREVIEW_RESPONSE.split(" ");
+    let assembled = "";
+    for (const word of words) {
+      if (signal?.aborted) break;
+      const chunk = (assembled ? " " : "") + word;
+      assembled += chunk;
+      onToken({ token: chunk, done: false });
+      await new Promise((res) => setTimeout(res, 45 + Math.random() * 25));
+    }
+    onToken({ token: "", done: true });
+    return assembled;
+  }
+
   if (Llama.isModelLoaded()) {
     let assembled = "";
     try {
