@@ -9,6 +9,7 @@ import {
   ToastAndroid,
   Modal,
   Platform,
+  Share,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
@@ -48,6 +49,12 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
     if (Platform.OS === "android") ToastAndroid.show("Copied!", ToastAndroid.SHORT);
     setMenuVisible(false);
   };
+  const handleShare = async () => {
+  setMenuVisible(false);
+  try {
+    await Share.share({ message: message.content });
+  } catch (_) {}
+};
   const handleEdit = () => { setMenuVisible(false); onEdit?.(message); };
   const handleRetry = () => { setMenuVisible(false); onRetry?.(message); };
 
@@ -143,23 +150,26 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
       ) : null}
 
       {/* AI action bar */}
-      {!isUser && !showCursor && message.content.length > 0 && (
-        <View style={[styles.actionBar, { justifyContent: "flex-start" }]}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleCopy} activeOpacity={0.7}>
-            <Feather name="copy" size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "up" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "up" ? null : "up")} activeOpacity={0.7}>
-            <Feather name="thumbs-up" size={14} color={liked === "up" ? colors.accentForeground : colors.mutedForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "down" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "down" ? null : "down")} activeOpacity={0.7}>
-            <Feather name="thumbs-down" size={14} color={liked === "down" ? colors.accentForeground : colors.mutedForeground} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleRetry} activeOpacity={0.7}>
-            <Feather name="rotate-ccw" size={14} color={colors.mutedForeground} />
-          </TouchableOpacity>
-        </View>
-      )}
-
+{!isUser && !showCursor && message.content.length > 0 && (
+  <View style={[styles.actionBar, { justifyContent: "flex-start" }]}>
+    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleCopy} activeOpacity={0.7}>
+      <Feather name="copy" size={14} color={colors.mutedForeground} />
+    </TouchableOpacity>
+    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "up" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "up" ? null : "up")} activeOpacity={0.7}>
+      <Feather name="thumbs-up" size={14} color={liked === "up" ? colors.accentForeground : colors.mutedForeground} />
+    </TouchableOpacity>
+    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: liked === "down" ? colors.accent : colors.secondary }]} onPress={() => setLiked(liked === "down" ? null : "down")} activeOpacity={0.7}>
+      <Feather name="thumbs-down" size={14} color={liked === "down" ? colors.accentForeground : colors.mutedForeground} />
+    </TouchableOpacity>
+    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleRetry} activeOpacity={0.7}>
+      <Feather name="rotate-ccw" size={14} color={colors.mutedForeground} />
+    </TouchableOpacity>
+    {/* ↓ Share button — இது புதுசு */}
+    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleShare} activeOpacity={0.7}>
+      <Feather name="share-2" size={14} color={colors.mutedForeground} />
+    </TouchableOpacity>
+  </View>
+)}
       {/* User action bar */}
       {isUser && !showCursor && message.content.length > 0 && (
         <View style={[styles.actionBar, { justifyContent: "flex-end" }]}>
