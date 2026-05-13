@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: artifacts/gemma-chat
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       # ── 5. Android NDK (needed for llama.rn C++ inference engine) ─────────
       - name: Setup Android SDK + NDK
