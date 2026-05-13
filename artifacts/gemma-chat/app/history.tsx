@@ -124,6 +124,7 @@ export default function HistoryScreen() {
         <FlatList
           data={sorted}
           keyExtractor={(c) => c.id}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             padding: 12,
             paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 24) + 12 : insets.bottom + 24,
