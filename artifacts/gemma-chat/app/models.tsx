@@ -136,6 +136,7 @@ export default function ModelsScreen() {
       </View>
 
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           padding: 16,
           paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 24) + 16 : insets.bottom + 24,

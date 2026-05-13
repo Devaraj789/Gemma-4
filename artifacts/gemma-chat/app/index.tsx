@@ -87,6 +87,7 @@ export default function ChatScreen() {
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingTop: 12, paddingBottom: 12 }}
+            showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <MessageBubble
                 message={item}
