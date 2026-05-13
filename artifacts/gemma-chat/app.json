@@ -1,6 +1,18 @@
 {
   "expo": {
     "name": "Gemma Offline Chat",
-    "slug": "gemma-chat"
+    "slug": "gemma-chat",
+    "owner": "devarajrdx9",
+    "version": "1.0.0",
+    "platforms": ["android"],
+    "android": {
+      "package": "com.devaraj.gemmachat",
+      "adaptiveIcon": {
+        "backgroundColor": "#000000"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
