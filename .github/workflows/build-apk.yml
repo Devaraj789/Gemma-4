@@ -36,6 +36,18 @@ jobs:
         working-directory: artifacts/gemma-chat
         run: pnpm install --no-frozen-lockfile
 
+        # ── 4b. Cache Gradle ─────────────────────────────────────────────────
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            artifacts/gemma-chat/android/.gradle
+          key: gradle-${{ hashFiles('artifacts/gemma-chat/android/**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-
+
       # ── 5. Android SDK + NDK ─────────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
