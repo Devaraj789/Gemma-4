@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ProgressBar } from "@/components/ProgressBar";
 import { ModelSuggestionsSheet } from "@/components/ModelSuggestionsSheet";
@@ -190,7 +190,14 @@ export function ModelCard({
                 <Feather name="trash-2" size={16} color={colors.destructive} />
               </Pressable>
             </>
-          ) : status === "downloading" ? null : (
+          ) : status === "downloading" ? null : Platform.OS === "web" ? (
+            <View style={[styles.webNotice, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+              <Feather name="smartphone" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.webNoticeText, { color: colors.mutedForeground }]}>
+                Download on Android / iOS device
+              </Text>
+            </View>
+          ) : (
             <Pressable
               onPress={onDownload}
               style={({ pressed }) => [
@@ -296,6 +303,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   whatCanIDoBtnText: { flex: 1, fontSize: 13.5, fontFamily: "Inter_600SemiBold" },
+  webNotice: {
+    flex: 1, flexDirection: "row", alignItems: "center",
+    justifyContent: "center", paddingVertical: 12, borderRadius: 12, gap: 6,
+    borderWidth: 1,
+  },
+  webNoticeText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   primaryBtn: {
     flex: 1, flexDirection: "row", alignItems: "center",
     justifyContent: "center", paddingVertical: 12, borderRadius: 12, gap: 8,

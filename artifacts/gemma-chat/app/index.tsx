@@ -103,9 +103,15 @@ export default function ChatScreen() {
             onSend={(text) => { setPrefill(null); handleSend(text); }}
             onStop={stopGeneration}
             isGenerating={isGenerating}
-            disabled={!activeModel}
+            disabled={Platform.OS !== "web" && !activeModel}
             hapticsEnabled={settings.haptics}
-            placeholder={activeModel ? "Message Gemma…" : "Download a model first to start chatting"}
+            placeholder={
+              Platform.OS === "web" && !activeModel
+                ? "Try the chat UI — AI runs on Android/iOS device"
+                : activeModel
+                ? "Message Gemma…"
+                : "Download a model first to start chatting"
+            }
             prefillText={prefill}
           />
         </View>

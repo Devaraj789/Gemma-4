@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 
@@ -60,10 +60,12 @@ export function EmptyChat({ onPickPrompt, hasModel, modelName }: Props) {
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         {hasModel
           ? `${modelName} runs entirely on this device — your messages never leave it.`
+          : Platform.OS === "web"
+          ? "Web preview mode — type a message below to see the UI. Real AI runs on Android/iOS."
           : "Download an offline Gemma model from the Models tab to start chatting."}
       </Text>
 
-      {hasModel ? (
+      {(hasModel || Platform.OS === "web") ? (
         <View style={styles.suggestionsGrid}>
           {SUGGESTIONS.map((s) => (
             <Pressable
