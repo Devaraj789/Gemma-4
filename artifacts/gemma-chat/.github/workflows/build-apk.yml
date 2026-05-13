@@ -1,15 +1,12 @@
 name: Build Android APK
-
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
-
 jobs:
   build:
     name: Build Gemma Offline Chat APK
     runs-on: ubuntu-latest
-
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────
       - name: Checkout code
@@ -27,13 +24,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: artifacts/gemma-chat/package-lock.json
 
-      # ── 4. Install npm deps ───────────────────────────────────────────────
+      # ── 4. Install pnpm + deps ───────────────────────────────────────────
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
       - name: Install dependencies
         working-directory: artifacts/gemma-chat
-        run: npm install --legacy-peer-deps
+        run: pnpm install
 
       # ── 5. Android NDK (needed for llama.rn C++ inference engine) ─────────
       - name: Setup Android SDK + NDK
