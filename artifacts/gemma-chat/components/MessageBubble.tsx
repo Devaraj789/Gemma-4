@@ -352,3 +352,4 @@ const styles = StyleSheet.create({
   menuIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   menuText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });
+
