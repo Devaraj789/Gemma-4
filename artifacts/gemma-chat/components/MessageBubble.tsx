@@ -47,7 +47,21 @@ const SC = {
   operator: "#89ddff",
   plain:    "#cdd3de",
 };
-
+function getMimeType(lang: string): string {
+  const map: Record<string, string> = {
+    html: "text/html", htm: "text/html",
+    css: "text/css",
+    js: "text/javascript", javascript: "text/javascript",
+    ts: "text/typescript", typescript: "text/typescript",
+    json: "application/json",
+    py: "text/x-python", python: "text/x-python",
+    md: "text/markdown", markdown: "text/markdown",
+    xml: "text/xml",
+    sh: "text/x-sh",
+    csv: "text/csv",
+  };
+  return map[lang.toLowerCase()] ?? "text/plain";
+}
 function getLangExtension(lang: string): string {
   const map: Record<string, string> = {
     html: ".html", htm: ".html", css: ".css",
@@ -98,18 +112,23 @@ function CodeBlock({ code, language, colors }: { code: string; language?: string
       const filename = `code_${Date.now()}${ext}`;
       const path = (FileSystem as any).cacheDirectory + filename;
       await FileSystem.writeAsStringAsync(path, code, { encoding: "utf8" as any });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(path, { mimeType: "text/plain", dialogTitle: `Save ${filename}` });
-      } else if (Platform.OS === "android") {
-        ToastAndroid.show("Sharing not available", ToastAndroid.SHORT);
-      }
+    const canShare = await Sharing.isAvailableAsync();
+if (canShare) {
+  await Sharing.shareAsync(path, {
+    mimeType: getMimeType(language ?? ""),
+    dialogTitle: `Save ${filename}`,
+    UTI: "public.plain-text",
+  });
+} else if (Platform.OS === "android") {
+  ToastAndroid.show("Sharing not available", ToastAndroid.SHORT);
+}
     } catch (e) {
       if (Platform.OS === "android") ToastAndroid.show("Download failed", ToastAndroid.SHORT);
     } finally {
       setDownloading(false);
     }
   };
+
   const isPreviewable = ["html", "htm", "svg", ""].includes((language ?? "").toLowerCase()) && code.trim().startsWith("<");
   const lines = code.split("\n");
 
@@ -141,22 +160,29 @@ function CodeBlock({ code, language, colors }: { code: string; language?: string
           </TouchableOpacity>
         </View>
       </View>
-      <ScrollView style={[cs.scrollV, { backgroundColor: "#0f1117" }]} nestedScrollEnabled showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <ScrollView horizontal showsHorizontalScrollIndicator nestedScrollEnabled keyboardShouldPersistTaps="handled">
-          <View style={cs.codeInner}>
-            {lines.map((line, i) => (
-              <View key={i} style={cs.lineRow}>
-                <Text style={cs.lineNum}>{i + 1}</Text>
-                <Text style={cs.lineText}>
-                  {tokenizeLine(line).map((tok, j) => (
-                    <Text key={j} style={{ color: tok.color }}>{tok.text}</Text>
-                  ))}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+
+      {/* ✅ FIX 1: Vertical ScrollView நீக்கினோம் - horizontal மட்டும் போதும் */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        style={{ backgroundColor: "#0f1117" }}
+      >
+        <View style={cs.codeInner}>
+          {lines.map((line, i) => (
+            <View key={i} style={cs.lineRow}>
+              <Text style={cs.lineNum}>{i + 1}</Text>
+              <Text style={cs.lineText}>
+                {tokenizeLine(line).map((tok, j) => (
+                  <Text key={j} style={{ color: tok.color }}>{tok.text}</Text>
+                ))}
+              </Text>
+            </View>
+          ))}
+        </View>
       </ScrollView>
+
       <Modal visible={previewVisible} animationType="slide" onRequestClose={() => setPreviewVisible(false)} statusBarTranslucent>
         <View style={[cs.previewModal, { backgroundColor: "#0f1117" }]}>
           <View style={[cs.previewHeader, { backgroundColor: "#1a1f2e", borderBottomColor: "#2d3550" }]}>
@@ -179,7 +205,7 @@ const cs = StyleSheet.create({
   headerBtns: { flexDirection: "row", gap: 6 },
   headerBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   headerBtnText: { fontSize: 11, fontFamily: "monospace" },
-  scrollV: { maxHeight: 320 },
+  // ✅ scrollV நீக்கினோம் - maxHeight இனி கிடையாது, full code show ஆகும்
   codeInner: { padding: 12, paddingRight: 20 },
   lineRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 1 },
   lineNum: { width: 32, fontSize: 12, color: "#3b4a5a", fontFamily: "monospace", textAlign: "right", marginRight: 14, lineHeight: 20 },
@@ -260,13 +286,27 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
           </Pressable>
         </Modal>
       )}
+
+      {/* ✅ FIX 2: User bubble alignment - paddingHorizontal சரிபண்ணினோம் */}
       <Pressable
         onPress={isUser ? () => setMenuVisible(true) : undefined}
         onLongPress={() => { if (isUser) setMenuVisible(true); }}
         delayLongPress={300}
-        style={[styles.row, { justifyContent: isUser ? "flex-end" : "flex-start" }]}
+        style={[
+          styles.row,
+          { justifyContent: isUser ? "flex-end" : "flex-start" }
+        ]}
       >
-        <View style={[styles.bubble, { backgroundColor: bubbleColor, borderTopRightRadius: isUser ? 4 : 20, borderTopLeftRadius: isUser ? 20 : 4 }]}>
+        <View style={[
+          styles.bubble,
+          {
+            backgroundColor: bubbleColor,
+            borderTopRightRadius: isUser ? 4 : 20,
+            borderTopLeftRadius: isUser ? 20 : 4,
+            // ✅ User bubble: right side visible ஆக marginRight add
+            marginRight: isUser ? 0 : undefined,
+          }
+        ]}>
           {!isUser && message.content.length > 0 ? (
             <Markdown style={mdStyles as any} rules={markdownRules}>
               {message.content + (showCursor ? "▌" : "")}
@@ -279,6 +319,7 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
           )}
         </View>
       </Pressable>
+
       {showStats && (
         <View style={styles.statsRow}>
           {(stats.loadTimeMs ?? 0) > 0 && (
@@ -300,6 +341,7 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
           )}
         </View>
       )}
+
       {!isUser && !showCursor && message.content.length > 0 && (
         <View style={[styles.actionBar, { justifyContent: "flex-start" }]}>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleCopy} activeOpacity={0.7}>
@@ -319,7 +361,9 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
           </TouchableOpacity>
         </View>
       )}
+
       {isUser && !showCursor && message.content.length > 0 && (
+        // ✅ FIX 3: Action bar user side - flex-end + paddingHorizontal match
         <View style={[styles.actionBar, { justifyContent: "flex-end" }]}>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.secondary }]} onPress={handleCopy} activeOpacity={0.7}>
             <Feather name="copy" size={14} color={colors.mutedForeground} />
@@ -337,13 +381,16 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", paddingHorizontal: 16, paddingVertical: 4 },
-  bubble: { maxWidth: "95%", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 },
+  // ✅ FIX 2: paddingHorizontal 16 → 12 (bubble screen edge-ல hide ஆகாம இருக்கும்)
+  row: { flexDirection: "row", paddingHorizontal: 12, paddingVertical: 4 },
+  // ✅ FIX 2: maxWidth 95% → 85% (user bubble right side clip ஆகாம)
+  bubble: { maxWidth: "85%", paddingHorizontal: 14, paddingVertical: 12, borderRadius: 20 },
   text: { fontFamily: "Inter_400Regular" },
-  statsRow: { flexDirection: "row", paddingHorizontal: 20, paddingTop: 2, paddingBottom: 2, gap: 6 },
+  statsRow: { flexDirection: "row", paddingHorizontal: 16, paddingTop: 2, paddingBottom: 2, gap: 6 },
   statPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   statText: { fontSize: 10.5, fontFamily: "Inter_500Medium" },
-  actionBar: { flexDirection: "row", paddingHorizontal: 20, paddingBottom: 6, gap: 6 },
+  // ✅ FIX 3: actionBar paddingHorizontal 20 → 12 (bubble align match)
+  actionBar: { flexDirection: "row", paddingHorizontal: 12, paddingBottom: 6, gap: 6 },
   actionBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" },
   menu: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, minWidth: 200, overflow: "hidden", elevation: 12, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
@@ -352,4 +399,3 @@ const styles = StyleSheet.create({
   menuIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   menuText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });
-
