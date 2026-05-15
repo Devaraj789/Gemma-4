@@ -107,4 +107,4 @@ jobs:
           name: gemma-offline-chat-release
           path: artifacts/gemma-chat/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
-          if-no-files-found: warn
+          if-no-files-found: warn 
