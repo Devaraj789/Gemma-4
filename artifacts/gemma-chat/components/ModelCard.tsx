@@ -33,6 +33,8 @@ const CAPABILITY_CONFIG: Record<Capability, CapabilityConfig> = {
   reasoning:  { label: "Reasoning",  icon: "cpu",            color: "#a855f7" },
   tool_use:   { label: "Tool Use",   icon: "tool",           color: "#06b6d4" },
   tamil:      { label: "Tamil",      icon: "globe",          color: "#f97316" },
+  instruct: { label: "Instruct", icon: "terminal", color: "#8B5CF6" },
+  multilingual: { label: "Multilingual", icon: "globe", color: "#06B6D4" },
   uncensored: { label: "Uncensored", icon: "unlock",         color: "#ef4444" },
 };
 

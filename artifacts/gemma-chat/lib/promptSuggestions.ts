@@ -99,6 +99,20 @@ export const CAPABILITY_PROMPT_GROUPS: Record<Capability, CapabilityGroup> = {
       { icon: "🌟", label: "Tamil story",                prompt: "Oru siriya Tamil kadai sollungal patrhi: " },
     ],
   },
+  instruct: {
+    capability: "instruct",
+    title: "Instruct Tasks",
+    color: "#8B5CF6",
+    featherIcon: "terminal",
+    suggestions: [{ icon: "▶", label: "Follow instruction", prompt: "Please follow this instruction:" }]
+  },
+  multilingual: {
+    capability: "multilingual",
+    title: "Multilingual",
+    color: "#06B6D4",
+    featherIcon: "globe",
+    suggestions: [{ icon: "🌐", label: "Translate text", prompt: "Translate this to English:" }]
+  },
   uncensored: {
     capability: "uncensored",
     title: "Uncensored Mode",

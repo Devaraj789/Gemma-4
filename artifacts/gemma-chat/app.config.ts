@@ -24,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       supportsTablet: false,
       bundleIdentifier: "com.devarajrdx9.gemmachat",
-      deploymentTarget: "16.0",
+      // deploymentTarget: "16.0",
       infoPlist: {
         NSMicrophoneUsageDescription:
           "Used for voice input to chat with Gemma AI",
@@ -34,9 +34,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       package: "com.devarajrdx9.gemmachat",
-      minSdkVersion: 26,
-      compileSdkVersion: 35,
-      targetSdkVersion: 35,
+      // minSdkVersion: 26,
+      // compileSdkVersion: 35,
+      // targetSdkVersion: 35,
       permissions: [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -55,9 +55,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "expo-build-properties",
         {
           android: {
-            minSdkVersion: 26,
-            compileSdkVersion: 35,
-            targetSdkVersion: 35,
+            // minSdkVersion: 26,
+            // compileSdkVersion: 35,
+            // targetSdkVersion: 35,
             buildToolsVersion: "35.0.0",
             kotlinVersion: "2.0.21",
             packagingOptions: {
@@ -71,7 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             enableDangerousExperimentalLeanBuilds: false,
           },
           ios: {
-            deploymentTarget: "16.0",
+            // deploymentTarget: "16.0",
           },
         },
       ],
