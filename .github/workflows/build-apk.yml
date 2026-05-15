@@ -75,10 +75,9 @@ jobs:
       - name: Patch ABI Filter (arm64-v8a only)
         working-directory: artifacts/gemma-chat/android
         run: |
-          sed -i '/defaultConfig {/a\        ndk { abiFilters "arm64-v8a" }' app/build.gradle
-          echo "=== Verify ==="
-          grep -A2 "abiFilters" app/build.gradle
-
+          echo "reactNativeArchitectures=arm64-v8a" >> gradle.properties
+          echo "Verify:" && grep reactNative gradle.properties
+          
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
