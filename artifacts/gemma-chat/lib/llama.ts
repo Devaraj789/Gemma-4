@@ -3,6 +3,7 @@ import type { Message } from "@/context/ChatContext";
 
 let activeContext: LlamaContext | null = null;
 let activeModelPath: string | null = null;
+let activeMmprojPath: string | null = null;
 let loadingPromise: Promise<LlamaContext> | null = null;
 let lastLoadTimeMs = 0;
 
@@ -10,10 +11,11 @@ export function getLastLoadTimeMs(): number {
   return lastLoadTimeMs;
 }
 
-export async function loadModel(modelPath: string): Promise<void> {
+export async function loadModel(modelPath: string, mmprojPath?: string): Promise<void> {
   if (activeModelPath === modelPath && activeContext) return;
   await unloadModel();
   const t0 = Date.now();
+  const isVision = !!mmprojPath;
   loadingPromise = initLlama({
     model: modelPath,
     n_ctx: 2048,
@@ -21,10 +23,29 @@ export async function loadModel(modelPath: string): Promise<void> {
     use_mlock: false,
     n_threads: 4,
     n_batch: 512,
+    ctx_shift: isVision ? false : true,
   });
   try {
     activeContext = await loadingPromise;
     activeModelPath = modelPath;
+
+    // Vision model — mmproj init
+    if (mmprojPath && activeContext) {
+      try {
+        const success = await activeContext.initMultimodal({
+          path: mmprojPath,
+          use_gpu: false,
+        });
+        if (success) {
+          activeMmprojPath = mmprojPath;
+        }
+      } catch (e) {
+        // mmproj load fail ஆனாலும் text mode-ல continue
+        console.warn("mmproj init failed, continuing without vision:", e);
+        activeMmprojPath = null;
+      }
+    }
+
     lastLoadTimeMs = Date.now() - t0;
   } finally {
     loadingPromise = null;
@@ -40,11 +61,16 @@ export async function unloadModel(): Promise<void> {
     }
     activeContext = null;
     activeModelPath = null;
+    activeMmprojPath = null;
   }
 }
 
 export function isModelLoaded(): boolean {
   return activeContext !== null;
+}
+
+export function isVisionEnabled(): boolean {
+  return activeMmprojPath !== null;
 }
 
 export function getActiveModelPath(): string | null {
@@ -120,7 +146,30 @@ export function formatQwenChat(
   prompt += "<|im_start|>assistant\n";
   return prompt;
 }
+// ✅ Vision prompt format — Qwen VL / multimodal models
+// Image token <image> prompt-ல இருக்கணும், actual image_url
+// completion params-ல separate-ஆ pass ஆகுது
+export function formatVisionPrompt(
+  userText: string,
+  _imageUri: string,
+  modelPath: string,
+): string {
+  const p = modelPath.toLowerCase();
 
+  if (p.includes("qwen")) {
+    // Qwen VL chat format
+    return (
+      `<|im_start|>user\n<image>\n${userText}<|im_end|>\n` +
+      `<|im_start|>assistant\n`
+    );
+  }
+
+  // Default fallback — Gemma-style with image placeholder
+  return (
+    `<start_of_turn>user\n<image>\n${userText}<end_of_turn>\n` +
+    `<start_of_turn>model\n`
+  );
+}
 export type CompletionParams = {
   messages: Message[];
   systemPrompt: string;
@@ -131,6 +180,7 @@ export type CompletionParams = {
   onToken: (token: string) => void;
   onStats?: (stats: { tokensPerSec: number; totalTokens: number }) => void;
   signal?: AbortSignal;
+  imageUri?: string; // ✅ NEW: optional vision image
 };
 
 export async function complete({
@@ -143,18 +193,21 @@ export async function complete({
   onToken,
   onStats,
   signal,
+  imageUri, // ✅ NEW
 }: CompletionParams): Promise<string> {
   if (!activeContext) {
     throw new Error("No model loaded. Activate a model first.");
   }
 
-  // ✅ Model-based format + stop tokens
   const path = activeModelPath ?? "";
-  const prompt = formatChat(messages, systemPrompt, path);
+
+  // ✅ Vision path: imageUri இருக்கு + mmproj loaded ஆச்சா
+  const useVision = !!imageUri && isVisionEnabled();
 
   const isLlama = path.toLowerCase().includes("llama");
-  const isQwen = path.toLowerCase().includes("qwen") ||
-                 path.toLowerCase().includes("deepseek");
+  const isQwen =
+    path.toLowerCase().includes("qwen") ||
+    path.toLowerCase().includes("deepseek");
 
   const stopTokens = isLlama
     ? ["<|eot_id|>", "<|end_of_text|>"]
@@ -162,20 +215,40 @@ export async function complete({
     ? ["<|im_end|>", "<|endoftext|>"]
     : ["<end_of_turn>", "<start_of_turn>"];
 
+  // ✅ Vision: last user message-ல image inject பண்ணு
+  // Text-only: existing formatChat use பண்ணு
+  let prompt: string;
+  if (useVision) {
+    // Qwen VL format — image token + text
+    const lastUserMsg =
+      messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+    prompt = formatVisionPrompt(lastUserMsg, imageUri!, path);
+  } else {
+    prompt = formatChat(messages, systemPrompt, path);
+  }
+
   let assembled = "";
   let tokenCount = 0;
   const startTime = Date.now();
 
+  // ✅ Vision: image_url pass பண்ணு completion params-ல
+  const completionParams: Record<string, unknown> = {
+    prompt,
+    n_predict: maxTokens,
+    temperature,
+    top_k: topK,
+    top_p: topP,
+    stop: stopTokens,
+    penalty_repeat: 1.1,
+  };
+
+  if (useVision && imageUri) {
+    // llama.rn vision: image_url as file URI
+    completionParams["image_url"] = imageUri;
+  }
+
   const completionPromise = activeContext.completion(
-    {
-      prompt,
-      n_predict: maxTokens,
-      temperature,
-      top_k: topK,
-      top_p: topP,
-      stop: stopTokens,
-      penalty_repeat: 1.1,
-    },
+    completionParams as Parameters<typeof activeContext.completion>[0],
     (data: { token: string }) => {
       if (signal?.aborted) return;
       assembled += data.token;
@@ -191,7 +264,9 @@ export async function complete({
 
   if (signal) {
     signal.addEventListener("abort", () => {
-      try { activeContext?.stopCompletion(); } catch { }
+      try {
+        activeContext?.stopCompletion();
+      } catch {}
     });
   }
 

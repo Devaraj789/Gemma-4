@@ -20,12 +20,14 @@ export type DownloadState = {
   modelId: string;
   status: DownloadStatus;
   progress: number;
+  mmprojProgress?: number;
   errorMessage?: string;
 };
 
 export type DownloadedModel = {
   id: string;
   localPath: string;
+  mmprojLocalPath?: string;
   downloadedAt: number;
 };
 
@@ -60,7 +62,10 @@ function getLocalPath(model: ModelVariant): string {
   return MODELS_DIR + model.id + ".gguf";
 }
 
-// Mutable registry for custom models added at runtime
+function getMmprojPath(model: ModelVariant): string {
+  return MODELS_DIR + model.id + "-mmproj.gguf";
+}
+
 const customModels: ModelVariant[] = [];
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
@@ -119,7 +124,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         if (dm) {
           setDownloadState((prev) => ({ ...prev, [dm.id]: { modelId: dm.id, status: "loading", progress: 1 } }));
           try {
-            await Llama.loadModel(dm.localPath);
+            await Llama.loadModel(dm.localPath, dm.mmprojLocalPath);
             if (mounted) {
               setActiveModelLoaded(true);
               setDownloadState((prev) => ({ ...prev, [dm.id]: { modelId: dm.id, status: "ready", progress: 1 } }));
@@ -173,7 +178,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
       setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "loading", progress: 1 } }));
       void (async () => {
         try {
-          await Llama.loadModel(dm.localPath);
+          await Llama.loadModel(dm.localPath, dm.mmprojLocalPath);
           setActiveModelLoaded(true);
           setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
         } catch (e) {
@@ -188,6 +193,8 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const cancelDownload = useCallback((id: string) => {
     const dl = downloadsRef.current[id];
     if (dl) { void dl.pauseAsync().catch(() => {}); downloadsRef.current[id] = undefined; }
+    const dlMmproj = downloadsRef.current[id + "-mmproj"];
+    if (dlMmproj) { void dlMmproj.pauseAsync().catch(() => {}); downloadsRef.current[id + "-mmproj"] = undefined; }
     setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "idle", progress: 0 } }));
   }, []);
 
@@ -198,7 +205,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
       if (downloadedIds.includes(id)) return;
       if (downloadState[id]?.status === "downloading") return;
 
-      setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "downloading", progress: 0 } }));
+      setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "downloading", progress: 0, mmprojProgress: 0 } }));
 
       void (async () => {
         try {
@@ -207,6 +214,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
           const existing = await FileSystem.getInfoAsync(localPath);
           if (existing.exists) await FileSystem.deleteAsync(localPath, { idempotent: true });
 
+          // ── 1. Main model download ──
           const dl = FileSystem.createDownloadResumable(
             model.downloadUrl,
             localPath,
@@ -214,7 +222,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
             (data) => {
               if (data.totalBytesExpectedToWrite > 0) {
                 const progress = data.totalBytesWritten / data.totalBytesExpectedToWrite;
-                setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "downloading", progress } }));
+                setDownloadState((prev) => ({ ...prev, [id]: { ...prev[id], modelId: id, status: "downloading", progress } }));
               }
             },
           );
@@ -224,19 +232,58 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
 
           if (!result?.uri) throw new Error("Download did not return a file URI");
 
-          const newEntry: DownloadedModel = { id, localPath: result.uri, downloadedAt: Date.now() };
+          // ── 2. mmproj download (vision models only) ──
+          let mmprojLocalPath: string | undefined;
+          if (model.mmprojUrl) {
+            const mmprojPath = getMmprojPath(model);
+            const existingMmproj = await FileSystem.getInfoAsync(mmprojPath);
+            if (existingMmproj.exists) await FileSystem.deleteAsync(mmprojPath, { idempotent: true });
+
+            setDownloadState((prev) => ({
+              ...prev,
+              [id]: { ...prev[id], modelId: id, status: "downloading", progress: 1, mmprojProgress: 0 },
+            }));
+
+            const dlMmproj = FileSystem.createDownloadResumable(
+              model.mmprojUrl,
+              mmprojPath,
+              {},
+              (data) => {
+                if (data.totalBytesExpectedToWrite > 0) {
+                  const mmprojProgress = data.totalBytesWritten / data.totalBytesExpectedToWrite;
+                  setDownloadState((prev) => ({ ...prev, [id]: { ...prev[id], modelId: id, status: "downloading", mmprojProgress } }));
+                }
+              },
+            );
+            downloadsRef.current[id + "-mmproj"] = dlMmproj;
+            const mmprojResult = await dlMmproj.downloadAsync();
+            downloadsRef.current[id + "-mmproj"] = undefined;
+
+            if (mmprojResult?.uri) {
+              mmprojLocalPath = mmprojResult.uri;
+            }
+          }
+
+          // ── 3. Save to storage ──
+          const newEntry: DownloadedModel = {
+            id,
+            localPath: result.uri,
+            mmprojLocalPath,
+            downloadedAt: Date.now(),
+          };
           setDownloadedModels((prev) => {
             const next = [...prev.filter((m) => m.id !== id), newEntry];
             void saveJSON(StorageKeys.DOWNLOADED_MODELS, next);
             return next;
           });
-          setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
+          setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1, mmprojProgress: 1 } }));
 
+          // ── 4. Auto-load if no active model ──
           setActiveModelIdState((curr) => {
             if (curr) return curr;
             void saveJSON(StorageKeys.ACTIVE_MODEL, id);
             setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "loading", progress: 1 } }));
-            void Llama.loadModel(result.uri)
+            void Llama.loadModel(result.uri, mmprojLocalPath)
               .then(() => {
                 setActiveModelLoaded(true);
                 setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
@@ -250,6 +297,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Download failed";
           downloadsRef.current[id] = undefined;
+          downloadsRef.current[id + "-mmproj"] = undefined;
           setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "error", progress: 0, errorMessage: msg } }));
         }
       })();
@@ -263,6 +311,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         const dm = downloadedModels.find((m) => m.id === id);
         if (dm) {
           try { await FileSystem.deleteAsync(dm.localPath, { idempotent: true }); } catch { /* ignore */ }
+          if (dm.mmprojLocalPath) {
+            try { await FileSystem.deleteAsync(dm.mmprojLocalPath, { idempotent: true }); } catch { /* ignore */ }
+          }
         }
         const next = downloadedModels.filter((m) => m.id !== id);
         setDownloadedModels(next);
@@ -276,7 +327,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
           setActiveModelIdState(fallbackId);
           void saveJSON(StorageKeys.ACTIVE_MODEL, fallbackId);
           if (fallback) {
-            try { await Llama.loadModel(fallback.localPath); setActiveModelLoaded(true); } catch { /* ignore */ }
+            try { await Llama.loadModel(fallback.localPath, fallback.mmprojLocalPath); setActiveModelLoaded(true); } catch { /* ignore */ }
           }
         }
       })();

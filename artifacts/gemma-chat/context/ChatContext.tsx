@@ -24,6 +24,8 @@ export type Message = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  imageUri?: string;
+  imageMimeType?: string;
   createdAt: number;
   stats?: MessageStats;
 };
@@ -45,7 +47,7 @@ type ChatContextValue = {
   newConversation: () => string;
   deleteConversation: (id: string) => void;
   clearAll: () => void;
-  sendMessage: (text: string, modelId: string | null) => Promise<void>;
+  sendMessage: (text: string, modelId: string | null, imageUri?: string, imageMimeType?: string) => Promise<void>;
   stopGeneration: () => void;
   isGenerating: boolean;
   generatingStats: MessageStats | null;
@@ -171,15 +173,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [conversations]);
 
   const sendMessage = useCallback(
-    async (text: string, modelId: string | null) => {
+    async (text: string, modelId: string | null, imageUri?: string, imageMimeType?: string) => {
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && !imageUri) return;
 
       let convId = activeId;
       let isNewConv = false;
       if (!convId) { convId = uuid(); isNewConv = true; }
 
-      const userMsg: Message = { id: uuid(), role: "user", content: trimmed, createdAt: Date.now() };
+      const userMsg: Message = { id: uuid(), role: "user", content: trimmed, imageUri, imageMimeType, createdAt: Date.now() };
       const placeholder: Message = { id: uuid(), role: "assistant", content: "", createdAt: Date.now() };
 
       setConversations((prev) => {
@@ -243,6 +245,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           messages: messagesForEngine,
           settings,
           signal: controller.signal,
+          imageUri, // ✅ ADD THIS — vision image forward
           onToken: (chunk) => {
             if (chunk.done) return;
             assembled += chunk.token;

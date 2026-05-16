@@ -11,6 +11,7 @@ import {
   Platform,
   Share,
   ScrollView,
+  Image, // ✅ NEW: vision image display
 } from "react-native";
 import { WebView } from "react-native-webview";
 import * as FileSystem from "expo-file-system";
@@ -307,6 +308,15 @@ export function MessageBubble({ message, showCursor, fontSize = "medium", onEdit
             marginRight: isUser ? 0 : undefined,
           }
         ]}>
+          {/* ✅ NEW: User image preview — imageUri இருந்தா show பண்ணு */}
+          {isUser && message.imageUri ? (
+            <Image
+              source={{ uri: message.imageUri }}
+              style={styles.messageImage}
+              resizeMode="cover"
+            />
+          ) : null}
+
           {!isUser && message.content.length > 0 ? (
             <Markdown style={mdStyles as any} rules={markdownRules}>
               {message.content + (showCursor ? "▌" : "")}
@@ -398,4 +408,11 @@ const styles = StyleSheet.create({
   menuItemBorder: { borderBottomWidth: StyleSheet.hairlineWidth },
   menuIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   menuText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  // ✅ NEW: vision image in user bubble
+  messageImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
 });

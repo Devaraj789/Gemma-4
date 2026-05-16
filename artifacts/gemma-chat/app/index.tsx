@@ -199,7 +199,7 @@ export default function ChatScreen() {
 
         <View style={{ paddingBottom: Platform.OS === "web" ? Math.max(insets.bottom, 12) : insets.bottom }}>
           <ChatInput
-            onSend={(text) => { setPrefill(null); handleSend(text); }}
+            onSend={(text, imageUri, imageMimeType) => { setPrefill(null); void sendMessage(text, activeModel?.id ?? null, imageUri, imageMimeType); }}
             onStop={stopGeneration}
             isGenerating={isGenerating}
             disabled={Platform.OS !== "web" && !activeModel}
@@ -223,15 +223,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
   emptyWrap: { flex: 1 },
-  chipsScroll: { maxHeight: 48, flexGrow: 0 },
+  chipsScroll: { maxHeight: 56, flexGrow: 0 },
   chipsContent: { paddingHorizontal: 14, paddingVertical: 8, gap: 8 },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  chipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   tsRow: {
     flexDirection: "row",
     alignItems: "center",

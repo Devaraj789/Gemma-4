@@ -16,6 +16,7 @@ export type GenerateParams = {
   onToken: (chunk: InferenceChunk) => void;
   onStats?: (stats: { tokensPerSec: number; totalTokens: number }) => void;
   signal?: AbortSignal;
+  imageUri?: string; // ✅ NEW: vision image URI
 };
 
 const WEB_PREVIEW_RESPONSE =
@@ -34,6 +35,7 @@ export async function generate({
   settings,
   onToken,
   signal,
+  imageUri, // ✅ NEW
 }: GenerateParams): Promise<string> {
   if (Platform.OS === "web") {
     const words = WEB_PREVIEW_RESPONSE.split(" ");
@@ -60,6 +62,7 @@ export async function generate({
         topP: settings.topP,
         maxTokens: settings.maxTokens,
         signal,
+        imageUri, // ✅ NEW: pass to llama.ts
         onToken: (token) => {
           assembled += token;
           onToken({ token, done: false });
@@ -77,7 +80,7 @@ export async function generate({
       return text || assembled;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Inference failed";
-      const errChunk = "\n\n ERROR: " + msg;
+      const errChunk = "\n\n❌ ERROR: " + msg;
       onToken({ token: errChunk, done: false });
       onToken({ token: "", done: true });
       return assembled + errChunk;

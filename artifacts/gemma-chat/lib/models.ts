@@ -11,6 +11,8 @@ export type ModelVariant = {
   quantization: string;
   format: "gguf" | "task";
   downloadUrl: string;
+  mmprojUrl?: string;
+  mmprojSizeBytes?: number;
   badges: string[];
   recommended?: boolean;
   ramWarning?: boolean;
@@ -98,12 +100,14 @@ export const GEMMA_MODELS: ModelVariant[] = [
     name: "Qwen 2.5 VL 3B Instruct",
     shortName: "Qwen 2.5 VL 3B",
     description: "Vision-language model. Can understand images and answer questions about them. Balanced size.",
-    sizeLabel: "~2.0 GB",
+    sizeLabel: "~1.93 GB",
     sizeBytes: 2_000_000_000,
     ramRequiredGb: 4,
     quantization: "Q4_K_M",
     format: "gguf",
-    downloadUrl: "https://huggingface.co/bartowski/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+    downloadUrl: "https://huggingface.co/unsloth/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
+    mmprojUrl: "https://huggingface.co/unsloth/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/mmproj-F16.gguf",
+    mmprojSizeBytes: 800_000_000,
     badges: ["GGUF", "Vision", "Q4_K_M"],
     capabilities: ["chat", "vision", "tool_use"],
   },
@@ -119,6 +123,8 @@ export const GEMMA_MODELS: ModelVariant[] = [
     quantization: "Q4_K_M",
     format: "gguf",
     downloadUrl: "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q4_K_M.gguf",
+    mmprojUrl: "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-2B-Instruct-F16.gguf",
+    mmprojSizeBytes: 400_000_000,
     badges: ["GGUF", "Vision", "NEW"],
     capabilities: ["chat", "vision", "tool_use", "reasoning"],
   },
@@ -133,6 +139,8 @@ export const GEMMA_MODELS: ModelVariant[] = [
     quantization: "Q4_K_M",
     format: "gguf",
     downloadUrl: "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen3VL-4B-Instruct-Q4_K_M.gguf",
+    mmprojUrl: "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-4B-Instruct-F16.gguf",
+    mmprojSizeBytes: 800_000_000,
     badges: ["GGUF", "Vision", "NEW"],
     capabilities: ["chat", "vision", "tool_use", "reasoning"],
   },
