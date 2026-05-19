@@ -1,4 +1,5 @@
 import { initLlama, type LlamaContext } from "llama.rn";
+import { Alert } from "react-native";
 import type { Message } from "@/context/ChatContext";
 
 let activeContext: LlamaContext | null = null;
@@ -38,6 +39,9 @@ export async function loadModel(modelPath: string, mmprojPath?: string): Promise
         });
         if (success) {
           activeMmprojPath = mmprojPath;
+          Alert.alert("Vision ✅", "mmproj loaded!");
+        } else {
+          Alert.alert("Vision ❌", "initMultimodal false — vision off!");
         }
       } catch (e) {
         // mmproj load fail ஆனாலும் text mode-ல continue
