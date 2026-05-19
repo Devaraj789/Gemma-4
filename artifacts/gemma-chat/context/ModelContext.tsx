@@ -100,7 +100,15 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
       for (const dm of normalized) {
         try {
           const info = await FileSystem.getInfoAsync(dm.localPath);
-          if (info.exists && (info.size ?? 0) > 1_000_000) verified.push(dm);
+          if (!info.exists || (info.size ?? 0) <= 1_000_000) continue;
+          if (dm.mmprojLocalPath) {
+            const mmprojInfo = await FileSystem.getInfoAsync(dm.mmprojLocalPath);
+            if (!mmprojInfo.exists || (mmprojInfo.size ?? 0) <= 100_000) {
+              verified.push({ ...dm, mmprojLocalPath: undefined });
+              continue;
+            }
+          }
+          verified.push(dm);
         } catch { /* skip */ }
       }
 
