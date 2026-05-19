@@ -47,3 +47,5 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+package-lock.json
+package-lock.json
