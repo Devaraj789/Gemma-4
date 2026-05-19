@@ -111,7 +111,7 @@ export default function ChatScreen() {
   }, [active]);
 
   const handleSend = useCallback(
-    (text: string) => { void sendMessage(text, activeModel?.id ?? null); },
+    (text: string, imageUri?: string, imageMimeType?: string) => { void sendMessage(text, activeModel?.id ?? null, imageUri, imageMimeType); },
     [sendMessage, activeModel],
   );
 
