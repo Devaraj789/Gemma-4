@@ -1,5 +1,6 @@
 export type Capability = "chat" | "coding" | "vision" | "tamil" | "uncensored" | "reasoning" | "tool_use" | "instruct" | "multilingual";
 
+
 export type ModelVariant = {
   id: string;
   name: string;
@@ -18,6 +19,7 @@ export type ModelVariant = {
   ramWarning?: boolean;
   capabilities?: Capability[];
 };
+
 
 export const GEMMA_MODELS: ModelVariant[] = [
   // ─── Google Gemma 3 Series ───────────────────────────────────────────────
@@ -263,18 +265,36 @@ export const GEMMA_MODELS: ModelVariant[] = [
   },
   // ─── Instruct ───────────────────────────────────────────────────────────
   {
-    id: "llama-3.2-1b-instruct-q5",
-    name: "Llama 3.2 1B Instruct",
-    shortName: "Llama 3.2 1B",
-    description: "Meta's lightweight 1B parameter instruction-following model. Supports 128K context, multilingual (EN, DE, FR, IT, PT+), optimized for fast inference on low-resource devices.",
-    sizeLabel: "~918 MB",
-    sizeBytes: 956_301_312,
-    ramRequiredGb: 2,
-    quantization: "Q5_K_M",
+    id: "llama-3.2-3b-instruct-q4",
+    name: "Llama 3.2 3B Instruct",
+    shortName: "Llama 3.2 3B",
+    description: "Meta's 3B parameter instruction-following model with better reasoning than 1B. Supports 128K context, multilingual (EN, DE, FR, IT, PT+), optimized for fast inference on mobile devices.",
+    sizeLabel: "~2.0 GB",
+    sizeBytes: 2_147_483_648,
+    ramRequiredGb: 3,
+    quantization: "Q4_K_M",
     format: "gguf",
-    downloadUrl: "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q5_K_M.gguf",
-    badges: ["GGUF", "Instruct", "Q5_K_M"],
-    capabilities: ["chat", "multilingual"],
+    downloadUrl: "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+    badges: ["GGUF", "Instruct", "Q4_K_M"],
+    capabilities: ["chat", "multilingual", "reasoning"],
+  },
+  // ─── OpenBMB MiniCPM-V Vision Series ─────────────────────────────────────
+  {
+    id: "minicpm-v-4-6-q4",
+    name: "MiniCPM-V 4.6",
+    shortName: "MiniCPM-V 4.6",
+    description: "OpenBMB's ultra-efficient 1.3B multimodal vision-language model. Supports image captioning, OCR, visual QA, video understanding. Mobile-optimized with Q4_K_M quantization.",
+    sizeLabel: "~1.6 GB",
+    sizeBytes: 1_717_986_918,
+    ramRequiredGb: 2,
+    quantization: "Q4_K_M",
+    format: "gguf",
+    downloadUrl: "https://huggingface.co/openbmb/MiniCPM-V-4.6-gguf/resolve/main/MiniCPM-V-4.6-Q4_K_M.gguf",
+    mmprojUrl: "https://huggingface.co/openbmb/MiniCPM-V-4.6-gguf/resolve/main/mmproj-MiniCPM-V-4.6-F16.gguf",
+    mmprojSizeBytes: 400_000_000,
+    badges: ["GGUF", "Vision", "Multimodal", "Q4_K_M", "OCR", "NEW"],
+    recommended: true,
+    capabilities: ["chat", "vision", "tamil", "multilingual", "tool_use", "reasoning"],
   },
   // ─── Uncensored ───────────────────────────────────────────────────────────
   {
@@ -293,9 +313,11 @@ export const GEMMA_MODELS: ModelVariant[] = [
   },
 ];
 
+
 export function findModel(id: string): ModelVariant | undefined {
   return GEMMA_MODELS.find((m) => m.id === id);
 }
+
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -303,6 +325,7 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+
 
 export function getRecommendedModel(ramGb: number): ModelVariant {
   if (ramGb <= 2) return GEMMA_MODELS.find((m) => m.id === "gemma-3-1b-it-q4")!;
