@@ -22,6 +22,21 @@ export type ModelVariant = {
 
 
 export const GEMMA_MODELS: ModelVariant[] = [
+  // ─── Tamil Low RAM Models ─────────────────────────────────────────────────
+    {
+    id: "gemma-2b-it-tamil-v0.1-alpha-q4",
+    name: "Gemma 2B Tamil v0.1 Alpha",
+    shortName: "Gemma Tamil 2B",
+    description: "Tamil instruction-finetuned Gemma 2B model. Bilingual Tamil + English, good for low-RAM Tamil chat.",
+    sizeLabel: "~1.55 GB",
+    sizeBytes: 1_554_740_000,
+    ramRequiredGb: 2,
+    quantization: "Q4_K_M",
+    format: "gguf",
+    downloadUrl: "https://huggingface.co/abhinand/gemma-2b-it-tamil-v0.1-alpha-GGUF/resolve/main/gemma-2b-it-tamil-v0.1-alpha.Q4_K_M.gguf",
+    badges: ["GGUF", "Tamil", "Instruct", "Q4_K_M"],
+    capabilities: ["chat", "tamil", "multilingual"],
+  },
   // ─── Google Gemma 3 Series ───────────────────────────────────────────────
   {
     id: "gemma-3-270m-it-q4",
