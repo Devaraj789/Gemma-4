@@ -44,6 +44,7 @@ type ModelContextValue = {
   deleteModel: (id: string) => void;
   setActiveModel: (id: string | null) => void;
   addCustomModel: (opts: { name: string; url: string }) => void;
+  loadActiveModelNow: () => Promise<void>;
   ready: boolean;
 };
 
@@ -76,6 +77,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [allModels, setAllModels] = useState<ModelVariant[]>(GEMMA_MODELS);
   const [ready, setReady] = useState<boolean>(false);
   const downloadsRef = useRef<Record<string, FileSystem.DownloadResumable | undefined>>({});
+  const loadingRef = useRef<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -125,29 +127,48 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         initial[dm.id] = { modelId: dm.id, status: "ready", progress: 1 };
       });
       setDownloadState(initial);
-      setReady(true);
 
-      if (validActive) {
-        const dm = verified.find((m) => m.id === validActive);
-        if (dm) {
-          setDownloadState((prev) => ({ ...prev, [dm.id]: { modelId: dm.id, status: "loading", progress: 1 } }));
-          try {
-            await Llama.loadModel(dm.localPath, dm.mmprojLocalPath);
-            if (mounted) {
-              setActiveModelLoaded(true);
-              setDownloadState((prev) => ({ ...prev, [dm.id]: { modelId: dm.id, status: "ready", progress: 1 } }));
-            }
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : "Model load failed";
-            if (mounted) {
-              setDownloadState((prev) => ({ ...prev, [dm.id]: { modelId: dm.id, status: "error", progress: 1, errorMessage: msg } }));
-            }
-          }
-        }
-      }
+      // ✅ LAZY LOAD: App open-ல model load வேண்டாம்!
+      // User first message அனுப்பும்போது loadActiveModelNow() call ஆகும்
+
+      setReady(true);
     })();
     return () => { mounted = false; };
   }, []);
+
+  // ✅ NEW: Manual trigger - user chat பண்ண ஆரம்பிக்கும்போது மட்டும் load
+  const loadActiveModelNow = useCallback(async () => {
+    if (loadingRef.current || activeModelLoaded) return;
+
+    const currentId = activeModelId;
+    if (!currentId) return;
+
+    const dm = downloadedModels.find((m) => m.id === currentId);
+    if (!dm) return;
+
+    loadingRef.current = true;
+    setDownloadState((prev) => ({
+      ...prev,
+      [currentId]: { modelId: currentId, status: "loading", progress: 1 },
+    }));
+
+    try {
+      await Llama.loadModel(dm.localPath, dm.mmprojLocalPath);
+      setActiveModelLoaded(true);
+      setDownloadState((prev) => ({
+        ...prev,
+        [currentId]: { modelId: currentId, status: "ready", progress: 1 },
+      }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Model load failed";
+      setDownloadState((prev) => ({
+        ...prev,
+        [currentId]: { modelId: currentId, status: "error", progress: 1, errorMessage: msg },
+      }));
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [activeModelId, activeModelLoaded, downloadedModels]);
 
   const downloadedIds = useMemo(() => downloadedModels.map((d) => d.id), [downloadedModels]);
 
@@ -174,28 +195,21 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const setActiveModel = useCallback(
     (id: string | null) => {
       setActiveModelIdState(id);
+      setActiveModelLoaded(false); // ✅ Reset - new model select பண்ணும்போது
+      loadingRef.current = false;
       void saveJSON(StorageKeys.ACTIVE_MODEL, id);
       if (id === null) {
         void Llama.unloadModel();
-        setActiveModelLoaded(false);
         return;
       }
-      const dm = downloadedModels.find((m) => m.id === id);
-      if (!dm) return;
-      setActiveModelLoaded(false);
-      setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "loading", progress: 1 } }));
-      void (async () => {
-        try {
-          await Llama.loadModel(dm.localPath, dm.mmprojLocalPath);
-          setActiveModelLoaded(true);
-          setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : "Failed to load model";
-          setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "error", progress: 1, errorMessage: msg } }));
-        }
-      })();
+      // ✅ LAZY: setActiveModel-லயே load பண்ண வேண்டாம்
+      // loadActiveModelNow() மட்டும் load பண்ணும்
+      setDownloadState((prev) => ({
+        ...prev,
+        [id]: { modelId: id, status: "ready", progress: 1 },
+      }));
     },
-    [downloadedModels],
+    [],
   );
 
   const cancelDownload = useCallback((id: string) => {
@@ -222,7 +236,6 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
           const existing = await FileSystem.getInfoAsync(localPath);
           if (existing.exists) await FileSystem.deleteAsync(localPath, { idempotent: true });
 
-          // ── 1. Main model download ──
           const dl = FileSystem.createDownloadResumable(
             model.downloadUrl,
             localPath,
@@ -240,7 +253,6 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
 
           if (!result?.uri) throw new Error("Download did not return a file URI");
 
-          // ── 2. mmproj download (vision models only) ──
           let mmprojLocalPath: string | undefined;
           if (model.mmprojUrl) {
             const mmprojPath = getMmprojPath(model);
@@ -272,7 +284,6 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          // ── 3. Save to storage ──
           const newEntry: DownloadedModel = {
             id,
             localPath: result.uri,
@@ -284,23 +295,18 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
             void saveJSON(StorageKeys.DOWNLOADED_MODELS, next);
             return next;
           });
-          setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1, mmprojProgress: 1 } }));
 
-          // ── 4. Auto-load if no active model ──
+          // ✅ Download முடிஞ்சதும் ready - ஆனா load பண்ண வேண்டாம்
+          setDownloadState((prev) => ({
+            ...prev,
+            [id]: { modelId: id, status: "ready", progress: 1, mmprojProgress: 1 },
+          }));
+
           setActiveModelIdState((curr) => {
             if (curr) return curr;
             void saveJSON(StorageKeys.ACTIVE_MODEL, id);
-            setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "loading", progress: 1 } }));
-            void Llama.loadModel(result.uri, mmprojLocalPath)
-              .then(() => {
-                setActiveModelLoaded(true);
-                setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "ready", progress: 1 } }));
-              })
-              .catch((e) => {
-                const msg = e instanceof Error ? e.message : "Failed to load model";
-                setDownloadState((prev) => ({ ...prev, [id]: { modelId: id, status: "error", progress: 1, errorMessage: msg } }));
-              });
             return id;
+            // ✅ Auto-load இல்ல - lazy load மட்டும்
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Download failed";
@@ -330,13 +336,12 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         if (activeModelId === id) {
           await Llama.unloadModel();
           setActiveModelLoaded(false);
+          loadingRef.current = false;
           const fallback = next[0] ?? null;
           const fallbackId = fallback?.id ?? null;
           setActiveModelIdState(fallbackId);
           void saveJSON(StorageKeys.ACTIVE_MODEL, fallbackId);
-          if (fallback) {
-            try { await Llama.loadModel(fallback.localPath, fallback.mmprojLocalPath); setActiveModelLoaded(true); } catch { /* ignore */ }
-          }
+          // ✅ Fallback-லயும் lazy - user chat பண்ணும்போது load ஆகும்
         }
       })();
     },
@@ -363,6 +368,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         deleteModel,
         setActiveModel,
         addCustomModel,
+        loadActiveModelNow,
         ready,
       }}
     >

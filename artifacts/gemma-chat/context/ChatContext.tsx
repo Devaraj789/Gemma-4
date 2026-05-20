@@ -13,6 +13,7 @@ import { StorageKeys, loadJSON, saveJSON } from "@/lib/storage";
 import { uuid } from "@/lib/uuid";
 
 import { useSettings } from "./SettingsContext";
+import { useModels } from "./ModelContext";
 
 export type MessageStats = {
   tokensPerSec: number;
@@ -65,6 +66,7 @@ function inferTitle(text: string): string {
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useSettings();
+  const { loadActiveModelNow } = useModels();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveIdState] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -213,6 +215,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (isNewConv) setActiveId(convId);
+      await loadActiveModelNow();
       setIsGenerating(true);
       setGeneratingStats(null);
       const controller = new AbortController();
