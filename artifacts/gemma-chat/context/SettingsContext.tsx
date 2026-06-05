@@ -4,8 +4,8 @@ import React, {
   useContext,
   useEffect,
   useState,
-} from "react";
-
+} from ls .github/workflows/
+;
 import { StorageKeys, loadJSON, saveJSON } from "@/lib/storage";
 
 export type Settings = {
@@ -18,6 +18,13 @@ export type Settings = {
   haptics: boolean;
   fontSize: "small" | "medium" | "large";
   autoDeleteDays: number;
+  language: string;
+  localDataOnly: boolean;
+  chatTheme: string;
+  // ─── OpenRouter ───────────────────────────────
+  openRouterApiKey: string;        // User enters in Settings screen
+  openRouterModel: string;         // Last selected online model
+  useOnlineModel: boolean;         // Toggle: offline llama vs online OpenRouter
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -31,6 +38,13 @@ const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   fontSize: "medium",
   autoDeleteDays: 0,
+  language: "English",
+  localDataOnly: true,
+  chatTheme: "default",
+  // ─── OpenRouter defaults ──────────────────────
+  openRouterApiKey: "",
+  openRouterModel: "mistralai/mistral-7b-instruct:free", // free tier default
+  useOnlineModel: false,
 };
 
 type SettingsContextValue = {
@@ -38,6 +52,8 @@ type SettingsContextValue = {
   updateSettings: (partial: Partial<Settings>) => void;
   resetSettings: () => void;
   ready: boolean;
+  // Helpers
+  hasApiKey: boolean;              // quick check: apiKey is set
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -54,7 +70,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setSettings({ ...DEFAULT_SETTINGS, ...stored });
       setReady(true);
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const updateSettings = useCallback((partial: Partial<Settings>) => {
@@ -71,7 +89,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings, ready }}>
+    <SettingsContext.Provider
+      value={{
+        settings,
+        updateSettings,
+        resetSettings,
+        ready,
+        hasApiKey: settings.openRouterApiKey.trim().length > 0,
+      }}
+    >
       {children}
     </SettingsContext.Provider>
   );
