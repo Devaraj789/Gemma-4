@@ -4,8 +4,7 @@ import React, {
   useContext,
   useEffect,
   useState,
-} from ls .github/workflows/
-;
+} from "react";
 import { StorageKeys, loadJSON, saveJSON } from "@/lib/storage";
 
 export type Settings = {
@@ -21,10 +20,9 @@ export type Settings = {
   language: string;
   localDataOnly: boolean;
   chatTheme: string;
-  // ─── OpenRouter ───────────────────────────────
-  openRouterApiKey: string;        // User enters in Settings screen
-  openRouterModel: string;         // Last selected online model
-  useOnlineModel: boolean;         // Toggle: offline llama vs online OpenRouter
+  openRouterApiKey: string;
+  openRouterModel: string;
+  useOnlineModel: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -33,17 +31,15 @@ const DEFAULT_SETTINGS: Settings = {
   topP: 0.95,
   maxTokens: 512,
   contextLength: 2048,
-  systemPrompt:
-    "You are a helpful, concise on-device assistant running entirely offline. Be friendly and clear.",
+  systemPrompt: "You are a helpful, concise on-device assistant running entirely offline. Be friendly and clear.",
   haptics: true,
   fontSize: "medium",
   autoDeleteDays: 0,
   language: "English",
   localDataOnly: true,
   chatTheme: "default",
-  // ─── OpenRouter defaults ──────────────────────
   openRouterApiKey: "",
-  openRouterModel: "mistralai/mistral-7b-instruct:free", // free tier default
+  openRouterModel: "mistralai/mistral-7b-instruct:free",
   useOnlineModel: false,
 };
 
@@ -52,8 +48,7 @@ type SettingsContextValue = {
   updateSettings: (partial: Partial<Settings>) => void;
   resetSettings: () => void;
   ready: boolean;
-  // Helpers
-  hasApiKey: boolean;              // quick check: apiKey is set
+  hasApiKey: boolean;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -70,9 +65,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setSettings({ ...DEFAULT_SETTINGS, ...stored });
       setReady(true);
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const updateSettings = useCallback((partial: Partial<Settings>) => {
@@ -89,15 +82,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider
-      value={{
-        settings,
-        updateSettings,
-        resetSettings,
-        ready,
-        hasApiKey: settings.openRouterApiKey.trim().length > 0,
-      }}
-    >
+    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings, ready, hasApiKey: settings.openRouterApiKey.trim().length > 0 }}>
       {children}
     </SettingsContext.Provider>
   );
