@@ -8,7 +8,7 @@ jobs:
     name: Build Gemma Offline Chat APK
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout code 
         uses: actions/checkout@v4
 
       - name: Free Disk Space
